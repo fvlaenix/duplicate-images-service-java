@@ -1,0 +1,3 @@
+[submodule "discord-bots-rpc"]
+	path = discord-bots-rpc
+	url = git@github.com:fvlaenix/discord-bots-rpc.git

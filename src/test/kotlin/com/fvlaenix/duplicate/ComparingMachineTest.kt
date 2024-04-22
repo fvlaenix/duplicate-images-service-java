@@ -18,7 +18,7 @@ import kotlin.test.assertTrue
 class ComparingMachineTest {
 
   private fun generateNewImage(number: Int): BufferedImage {
-    val newImage = BufferedImage(100, 100, BufferedImage.TYPE_INT_RGB)
+    val newImage = BufferedImage(400, 400, BufferedImage.TYPE_INT_RGB)
     var imageDivider = number
     val r = imageDivider % 255
     imageDivider /= 255
@@ -39,7 +39,7 @@ class ComparingMachineTest {
   
   @Test
   fun `full graph of dependencies`() = Context.withComparingMachine { comparingMachine ->
-    val duplicateImage = BufferedImage(300, 300, BufferedImage.TYPE_INT_RGB)
+    val duplicateImage = BufferedImage(400, 400, BufferedImage.TYPE_INT_RGB)
 
     var countOfImages = 0
     repeat(10) { messageId ->

@@ -112,7 +112,7 @@ object ImageTable : Table() {
   }
 }
 
-val LOGGER = Logger.getLogger(ImageConnector::class.java.simpleName)
+private val LOGGER: Logger = Logger.getLogger(ImageConnector::class.java.simpleName)
 
 class ImageConnector(private val database: Database) {
 
@@ -184,7 +184,7 @@ class ImageConnector(private val database: Database) {
     }
   }
 
-  class Brackets<T>(val e1: ExpressionWithColumnType<T>, override val columnType: IColumnType) : ExpressionWithColumnType<T>() {
+  class Brackets<T>(private val e1: ExpressionWithColumnType<T>, override val columnType: IColumnType) : ExpressionWithColumnType<T>() {
     override fun toQueryBuilder(queryBuilder: QueryBuilder) = queryBuilder { append("(", e1, ")") }
   }
 

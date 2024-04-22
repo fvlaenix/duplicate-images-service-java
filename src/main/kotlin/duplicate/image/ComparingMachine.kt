@@ -1,5 +1,6 @@
 package com.fvlaenix.duplicate.image
 
+import com.fvlaenix.duplicate.database.Connector
 import com.fvlaenix.duplicate.database.ImageConnector
 import com.fvlaenix.duplicate.protobuf.*
 import com.fvlaenix.image.protobuf.Image
@@ -11,6 +12,7 @@ import kotlinx.coroutines.runBlocking
 import net.coobird.thumbnailator.Thumbnails
 import org.jetbrains.exposed.sql.Database
 import java.awt.image.BufferedImage
+import java.util.*
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.logging.Level
 import java.util.logging.Logger
@@ -18,9 +20,30 @@ import javax.imageio.IIOException
 import javax.imageio.ImageIO
 import kotlin.io.path.Path
 import kotlin.io.path.extension
+import kotlin.io.path.inputStream
+import kotlin.io.path.notExists
 import kotlin.math.min
 
 private val LOGGER: Logger = Logger.getLogger(ComparingMachine::class.java.simpleName)
+
+private val ENV_PROPERTIES = System.getenv("PATH_TO_COMPARING_PROPERTIES")?.let {
+  val path = Path(it)
+  if (path.notExists()) {
+    throw IllegalStateException("Path should be accessible: $path")
+  }
+  Properties().apply { load(path.inputStream()) }
+}
+
+private val RESERVE_PROPERTIES = Connector::class.java.getResourceAsStream("/comparing.properties")?.let {
+  Properties().apply { load(it) }
+}
+
+private val PROPERTIES = ENV_PROPERTIES?.apply { LOGGER.info("Using env properties") } ?: 
+  RESERVE_PROPERTIES?.apply { LOGGER.info("Using git properties") } ?: 
+  throw IllegalStateException("Can't find env path ${System.getenv("PATH_TO_COMPARING_PROPERTIES")} and local path")
+
+private val WIDTH = PROPERTIES.getProperty("width")?.toInt() ?: throw IllegalStateException("width should exists in properties")
+private val HEIGHT = PROPERTIES.getProperty("height")?.toInt() ?: throw IllegalStateException("height should exists in properties")
 
 class ComparingMachine(database: Database) {
   
@@ -28,8 +51,8 @@ class ComparingMachine(database: Database) {
 
   companion object {
     // it is const, but you can change it between launches anyway
-    var SIZE_MAX_WIDTH: Int? = 400
-    var SIZE_MAX_HEIGHT: Int? = null
+    val SIZE_MAX_WIDTH: Int? = if (WIDTH <= 0) null else WIDTH
+    val SIZE_MAX_HEIGHT: Int? = if (HEIGHT <= 0) null else HEIGHT
 
     @OptIn(DelicateCoroutinesApi::class)
     val newThreadContext = newFixedThreadPoolContext(16, "Comparing machine context")

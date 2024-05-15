@@ -14,6 +14,9 @@ class DuplicateImagesService(database: Database) : DuplicateImagesServiceGrpcKt.
   override suspend fun addImage(request: AddImageRequest): AddImageResponse =
     comparingMachine.addImage(request)
 
+  override suspend fun existsImage(request: ExistsImageRequest): ExistsImageResponse =
+    comparingMachine.existsImage(request)
+
   override suspend fun checkImage(request: CheckImageRequest): CheckImageResponse =
     comparingMachine.checkImage(request)
 

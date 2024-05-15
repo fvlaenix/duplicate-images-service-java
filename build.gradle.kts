@@ -20,7 +20,7 @@ dependencies {
     implementation("io.grpc:grpc-protobuf:1.59.0")
     implementation("io.grpc:grpc-stub:1.59.0")
     compileOnly("org.apache.tomcat:annotations-api:6.0.53")
-    protobuf(files("discord-bots-rpc/duplicate-image.proto", "discord-bots-rpc/is-alive.proto", "discord-bots-rpc/image.proto"))
+    protobuf(files("discord-bots-rpc/duplicate-image-request.proto", "discord-bots-rpc/is-alive.proto", "discord-bots-rpc/image.proto"))
 
     implementation("org.slf4j:slf4j-api:2.0.9")
     implementation("org.slf4j:slf4j-simple:2.0.9")

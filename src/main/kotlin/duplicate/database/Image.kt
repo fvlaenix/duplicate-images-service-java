@@ -142,6 +142,11 @@ class ImageConnector(private val database: Database) {
     transaction(database) {
       ImageTable.select { ImageTable.imageInfo eq imageInfo }.map { get(it) }.firstNotNullOfOrNull { it }
     }
+  
+  fun isImageExistsById(imageInfo: String): Boolean =
+    transaction(database) { 
+      ImageTable.select { ImageTable.imageInfo eq imageInfo }.count() > 0
+    }
 
   fun addImage(group: String, imageInfo: String, image: BufferedImage, fileName: String, timeStamp: Long): Boolean {
     val blob = ImageUtils.getImageBlob(image, Path(fileName).extension) ?: return false

@@ -113,6 +113,10 @@ class ComparingMachine(database: Database) {
     return addImageResponse { this.isAdded = added }
   }
 
+  fun existsImage(request: ExistsImageRequest): ExistsImageResponse {
+    return existsImageResponse { this.isExists = connector.isImageExistsById(request.imageInfo) }
+  }
+
   fun checkImage(request: CheckImageRequest): CheckImageResponse {
     val image = readImage(request.image) ?: return checkImageResponse { this.error = "Can't read image" }
     val ids = connector.getSimilarImages(image, request.group, request.timestamp)

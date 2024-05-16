@@ -53,6 +53,8 @@ class ComparingMachine(database: Database) {
     // it is const, but you can change it between launches anyway
     val SIZE_MAX_WIDTH: Int? = if (WIDTH <= 0) null else WIDTH
     val SIZE_MAX_HEIGHT: Int? = if (HEIGHT <= 0) null else HEIGHT
+    
+    private val COMPARING_COUNT = 32
 
     @OptIn(DelicateCoroutinesApi::class)
     val newThreadContext = newFixedThreadPoolContext(16, "Comparing machine context")
@@ -101,30 +103,35 @@ class ComparingMachine(database: Database) {
     return bufferedImage
   }
   
-  fun addImage(request: AddImageRequest): AddImageResponse {
+  fun addImageWithCheck(request: AddImageRequest): AddImageResponse {
     val image = readImage(request.image) ?: return addImageResponse { this.error = "Can't read image" }
-    val added = connector.addImage(
+    val added = connector.addImageWithCheck(
       request.group,
-      request.imageInfo,
+      request.imageId,
+      request.additionalInfo,
       image,
       request.image.fileName,
       request.timestamp
     )
-    return addImageResponse { this.isAdded = added }
+    val checkResult = checkImageCandidates(image, added.similarIds)
+    return addImageResponse {
+      this.responseOk = addImageResponseOk { 
+        this.isAdded = added.isAdded
+        this.imageInfo = CheckImageResponseImageInfo.newBuilder().addAllImageInfo(checkResult).build()
+      }
+    }
   }
 
   fun existsImage(request: ExistsImageRequest): ExistsImageResponse {
     return existsImageResponse { this.isExists = connector.isImageExistsById(request.imageInfo) }
   }
 
-  fun checkImage(request: CheckImageRequest): CheckImageResponse {
-    val image = readImage(request.image) ?: return checkImageResponse { this.error = "Can't read image" }
-    val ids = connector.getSimilarImages(image, request.group, request.timestamp)
+  private fun checkImageCandidates(image: BufferedImage, ids: List<String>): List<String> {
     var it = 0
     val result = ConcurrentLinkedQueue<String>()
     while (it < ids.size) {
       val startIndex = it
-      val finishIndex = startIndex + 32
+      val finishIndex = startIndex + COMPARING_COUNT
       val subList = ids.subList(startIndex, min(finishIndex, ids.size))
       val images = subList.associateWith { connector.getImageById(it) }
       runBlocking {
@@ -138,8 +145,15 @@ class ComparingMachine(database: Database) {
           }
         }
       }
-      it += 32
+      it += COMPARING_COUNT
     }
+    return result.toList()
+  }
+  
+  fun checkImage(request: CheckImageRequest): CheckImageResponse {
+    val image = readImage(request.image) ?: return checkImageResponse { this.error = "Can't read image" }
+    val ids = connector.getSimilarImages(image, request.group, request.timestamp)
+    val result = checkImageCandidates(image, ids)
     return checkImageResponse { this.imageInfo = CheckImageResponseImageInfo.newBuilder().addAllImageInfo(result).build() }
   }
 

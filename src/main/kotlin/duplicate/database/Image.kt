@@ -25,7 +25,8 @@ import kotlin.io.path.extension
 
 class Image(
   val group: String,
-  val imageInfo: String, // unique for each image
+  val imageId: String, // unique for each image
+  val additionalInfo: String,
   val image: BufferedImage,
   val size: Size,
   val fileName: String,
@@ -39,7 +40,8 @@ class Image(
 
 object ImageTable : Table() {
   val group = varchar("group", 100)
-  val imageInfo = varchar("imageInfo", 1000).primaryKey()
+  val imageId = varchar("imageId", 1000).primaryKey()
+  val additionalInfo = varchar("additionalInfo", 100)
   val image = blob("image")
   val height = integer("height")
   val width = integer("width")
@@ -107,7 +109,7 @@ object ImageTable : Table() {
   val rightBottom = RGB(this, "2") { image -> image.getRGB(image.width - 1, image.height - 1) }
 
   init {
-    index("imageInfo", false, imageInfo)
+    index("imageId", false, imageId)
     index("similarIndex", false, group, timestamp, *(leftUpper.toArray()), *(center.toArray()), *(rightBottom.toArray()), height, width)
   }
 }
@@ -122,62 +124,84 @@ class ImageConnector(private val database: Database) {
     }
   }
 
+  private fun getTransactionalSimilarImages(image: BufferedImage, group: String, timeStamp: Long): List<String> {
+    return ImageTable
+      .select {
+        (ImageTable.leftUpper.toSimilar(image))
+          .and(ImageTable.center.toSimilar(image))
+          .and(ImageTable.rightBottom.toSimilar(image))
+          .and(ImageTable.height eq image.height)
+          .and(ImageTable.width eq image.width)
+          .and(ImageTable.group eq group)
+          .and(ImageTable.timestamp less timeStamp)
+      }.map { it[ImageTable.imageId] }.apply {
+        if (this.size > 100) LOGGER.log(Level.WARNING, "Count of taken images is ${this.size}")
+      }
+  }
+  
   fun getSimilarImages(image: BufferedImage, group: String, timeStamp: Long) : List<String> =
     transaction(database) {
-      ImageTable
-        .select {
-          (ImageTable.leftUpper.toSimilar(image))
-            .and(ImageTable.center.toSimilar(image))
-            .and(ImageTable.rightBottom.toSimilar(image))
-            .and(ImageTable.height eq image.height)
-            .and(ImageTable.width eq image.width)
-            .and(ImageTable.group eq group)
-            .and(ImageTable.timestamp less timeStamp)
-        }.map { it[ImageTable.imageInfo] }.apply {
-          if (this.size > 100) LOGGER.log(Level.WARNING, "Count of taken images is ${this.size}")
-        }
+      getTransactionalSimilarImages(image, group, timeStamp)
     }
 
-  fun getImageById(imageInfo: String): Image? =
+  fun getImageById(imageId: String): Image? =
     transaction(database) {
-      ImageTable.select { ImageTable.imageInfo eq imageInfo }.map { get(it) }.firstNotNullOfOrNull { it }
+      ImageTable.select { ImageTable.imageId eq imageId }.map { get(it) }.firstNotNullOfOrNull { it }
     }
   
-  fun isImageExistsById(imageInfo: String): Boolean =
+  fun isImageExistsById(imageId: String): Boolean =
     transaction(database) { 
-      ImageTable.select { ImageTable.imageInfo eq imageInfo }.count() > 0
+      ImageTable.select { ImageTable.imageId eq imageId }.count() > 0
     }
 
-  fun addImage(group: String, imageInfo: String, image: BufferedImage, fileName: String, timeStamp: Long): Boolean {
-    val blob = ImageUtils.getImageBlob(image, Path(fileName).extension) ?: return false
-    return transaction(database) {
-      val images = ImageTable.select { ImageTable.imageInfo eq imageInfo }.mapNotNull { get(it) }
-      if (images.isNotEmpty()) return@transaction false
-      else ImageTable.insert {
-        it[ImageTable.group] = group
-        it[ImageTable.imageInfo] = imageInfo
-        it[ImageTable.image] = blob
-        it[ImageTable.height] = image.height
-        it[ImageTable.width] = image.width
-        it[ImageTable.fileName] = fileName
-        it[ImageTable.timestamp] = timeStamp
-        leftUpper.insert(it, image)
-        center.insert(it, image)
-        rightBottom.insert(it, image)
-      }
-      return@transaction true
+  private fun addTransactionalImage(
+    group: String,
+    imageId: String,
+    additionalInfo: String,
+    image: BufferedImage,
+    fileName: String,
+    timeStamp: Long,
+    blob: SerialBlob
+  ): Boolean {
+    val images = ImageTable.select { ImageTable.imageId eq imageId }.mapNotNull { get(it) }
+    if (images.isNotEmpty()) return false
+    else ImageTable.insert {
+      it[ImageTable.group] = group
+      it[ImageTable.imageId] = imageId
+      it[ImageTable.additionalInfo] = additionalInfo
+      it[ImageTable.image] = blob
+      it[ImageTable.height] = image.height
+      it[ImageTable.width] = image.width
+      it[ImageTable.fileName] = fileName
+      it[ImageTable.timestamp] = timeStamp
+      leftUpper.insert(it, image)
+      center.insert(it, image)
+      rightBottom.insert(it, image)
+    }
+    return true
+  }
+  
+  data class ReturnResultAddAndCheck(val similarIds: List<String>, val isAdded: Boolean)
+  
+  fun addImageWithCheck(group: String, imageId: String, additionalInfo: String, image: BufferedImage, fileName: String, timeStamp: Long): ReturnResultAddAndCheck {
+    val blob = ImageUtils.getImageBlob(image, Path(fileName).extension) ?: return ReturnResultAddAndCheck(emptyList(), false)
+    return transaction(database) { 
+      val list = getTransactionalSimilarImages(image, group, timeStamp)
+      val addingResult = addTransactionalImage(group, imageId, additionalInfo, image, fileName, timeStamp, blob)
+      ReturnResultAddAndCheck(list, addingResult)
     }
   }
 
   fun get(resultRow: ResultRow): Image? {
     val image = ImageUtils.getImageFromBlob(SerialBlob(resultRow[ImageTable.image]))
     return if (image == null) {
-      LOGGER.log(Level.SEVERE, "Failed image read. Id: ${resultRow[ImageTable.imageInfo]}")
+      LOGGER.log(Level.SEVERE, "Failed image read. Id: ${resultRow[ImageTable.imageId]}")
       null
     } else {
       Image(
         resultRow[ImageTable.group],
-        resultRow[ImageTable.imageInfo],
+        resultRow[ImageTable.imageId],
+        resultRow[ImageTable.additionalInfo],
         image,
         size { x = resultRow[ImageTable.width]; y = resultRow[ImageTable.height] },
         resultRow[ImageTable.fileName],

@@ -46,10 +46,10 @@ class ComparingMachineTest {
       val imagesInMessage = Random.nextInt(1, 6)
       val epoch = System.currentTimeMillis()
       repeat(imagesInMessage) { numberInMessage ->
-        comparingMachine.addImage(
+        comparingMachine.addImageWithCheck(
           addImageRequest { 
             this.group = "group-1"
-            this.imageInfo = "{messageId:$messageId,numberInMessage:$numberInMessage}"
+            this.imageId = "{messageId:$messageId,numberInMessage:$numberInMessage}"
             this.image = image { this.fileName = "file.png"; this.content = ImageUtils.getByteArray(duplicateImage, "PNG").toByteString() }
             this.timestamp = epoch
           }
@@ -85,10 +85,10 @@ class ComparingMachineTest {
       val epoch = System.currentTimeMillis()
       val images = (1..imagesInMessage).map { numberInMessage ->
         val image = generateNewImage()
-        comparingMachine.addImage(
+        comparingMachine.addImageWithCheck(
           addImageRequest {
             this.group = "group"
-            this.imageInfo = "{messageId:$messageId,numberInMessage:$numberInMessage}"
+            this.imageId = "{messageId:$messageId,numberInMessage:$numberInMessage}"
             this.image = toImage("file.png", image)
             this.timestamp = epoch
           }
@@ -119,12 +119,14 @@ class ComparingMachineTest {
       val randomSeed = Random.nextInt(10)
       images[randomSeed] = (images[randomSeed] ?: 0) + 1
       val image = generateNewImage(randomSeed)
-      assertTrue(comparingMachine.addImage(addImageRequest {
+      val resultAdding = comparingMachine.addImageWithCheck(addImageRequest {
         this.group = "group-1"
-        this.imageInfo = "{messageId:$number}"
+        this.imageId = "{messageId:$number}"
+        this.additionalInfo = ""
         this.image = toImage("file.png", image)
         this.timestamp = 1
-      }).isAdded)
+      })
+      assertTrue(resultAdding.responseOk.isAdded)
     }
 
     repeat(50) {
@@ -147,15 +149,15 @@ class ComparingMachineTest {
     ComparingPictures.TEST_TOLERANCE = 1
     val firstImage = generateNewImage(0)
     val secondImage = generateNewImage(1)
-    comparingMachine.addImage(addImageRequest { 
+    comparingMachine.addImageWithCheck(addImageRequest { 
       this.group = "1"
-      this.imageInfo = "1"
+      this.imageId = "1"
       this.image = toImage("a.png", firstImage)
       this.timestamp = 0 
     })
-    comparingMachine.addImage(addImageRequest { 
+    comparingMachine.addImageWithCheck(addImageRequest { 
       this.group = "1"
-      this.imageInfo = "2"
+      this.imageId = "2"
       this.image = toImage("b.png", secondImage)
       this.timestamp = 0
     })
@@ -178,15 +180,15 @@ class ComparingMachineTest {
     ComparingPictures.TEST_TOLERANCE = 1
     val firstImage = generateNewImage(0)
     val secondImage = generateNewImage(0)
-    comparingMachine.addImage(addImageRequest {
+    comparingMachine.addImageWithCheck(addImageRequest {
       this.group = "1"
-      this.imageInfo = "1"
+      this.imageId = "1"
       this.image = toImage("a.png", firstImage)
       this.timestamp = 0
     })
-    comparingMachine.addImage(addImageRequest {
+    comparingMachine.addImageWithCheck(addImageRequest {
       this.group = "1"
-      this.imageInfo = "2"
+      this.imageId = "2"
       this.image = toImage("b.png", secondImage)
       this.timestamp = 0
     })
@@ -203,15 +205,15 @@ class ComparingMachineTest {
     ComparingPictures.TEST_TOLERANCE = 1
     val firstImage = generateNewImage(0)
     val secondImage = generateNewImage(0)
-    comparingMachine.addImage(addImageRequest {
+    comparingMachine.addImageWithCheck(addImageRequest {
       this.group = "1"
-      this.imageInfo = "1"
+      this.imageId = "1"
       this.image = toImage("a.png", firstImage)
       this.timestamp = 0
     })
-    comparingMachine.addImage(addImageRequest {
+    comparingMachine.addImageWithCheck(addImageRequest {
       this.group = "2"
-      this.imageInfo = "2"
+      this.imageId = "2"
       this.image = toImage("b.png", secondImage)
       this.timestamp = 0
     })
@@ -228,15 +230,15 @@ class ComparingMachineTest {
     ComparingPictures.TEST_TOLERANCE = 1
     val firstImage = generateNewImage(0)
     val secondImage = generateNewImage(0)
-    comparingMachine.addImage(addImageRequest {
+    comparingMachine.addImageWithCheck(addImageRequest {
       this.group = "1"
-      this.imageInfo = "1"
+      this.imageId = "1"
       this.image = toImage("a.png", firstImage)
       this.timestamp = 0
     })
-    comparingMachine.addImage(addImageRequest {
+    comparingMachine.addImageWithCheck(addImageRequest {
       this.group = "2"
-      this.imageInfo = "2"
+      this.imageId = "2"
       this.image = toImage("b.png", secondImage)
       this.timestamp = 0
     })

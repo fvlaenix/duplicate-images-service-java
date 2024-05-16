@@ -19,9 +19,10 @@ class ConnectorTest {
       val imagesInMessage = Random.nextInt(1, 6)
       val epoch = System.currentTimeMillis()
       repeat(imagesInMessage) { numberInMessage ->
-        connector.addImage(
+        connector.addImageWithCheck(
           "group-1",
           "{messageId:$messageId,numberInMessage:$numberInMessage}",
+          "",
           duplicateImage,
           "file.jpg",
           epoch
@@ -68,9 +69,10 @@ class ConnectorTest {
       val epoch = System.currentTimeMillis()
       val images = (1..imagesInMessage).map { numberInMessage ->
         val image = generateNewImage()
-        imageConnector.addImage(
+        imageConnector.addImageWithCheck(
           "group",
           "{messageId:$messageId,numberInMessage:$numberInMessage}",
+          "",
           image,
           "file.jpg",
           epoch
@@ -111,13 +113,14 @@ class ConnectorTest {
       val randomSeed = Random.nextInt(10)
       images[randomSeed] = (images[randomSeed] ?: 0) + 1
       val image = generateNewImage(randomSeed)
-      assertTrue(imageConnector.addImage(
+      assertTrue(imageConnector.addImageWithCheck(
         "group",
         "messageId:$number",
+        "",
         image,
         "File.png",
         1
-      ))
+      ).isAdded)
     }
     
     repeat(50) {
@@ -138,9 +141,10 @@ class ConnectorTest {
     val firstImage = BufferedImage(10, 10, BufferedImage.TYPE_INT_RGB).apply { this.setRGB(0, 1, Color.BLACK.rgb) }
     val secondImage = BufferedImage(10, 10, BufferedImage.TYPE_INT_RGB)
     
-    imageConnector.addImage(
+    imageConnector.addImageWithCheck(
       "gr",
       "1",
+      "",
       firstImage,
       "1.png",
       0

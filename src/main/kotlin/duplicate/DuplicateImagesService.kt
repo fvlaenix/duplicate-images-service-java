@@ -11,8 +11,8 @@ class DuplicateImagesService(database: Database) : DuplicateImagesServiceGrpcKt.
 
   private val comparingMachine = ComparingMachine(database)
 
-  override suspend fun addImage(request: AddImageRequest): AddImageResponse =
-    comparingMachine.addImage(request)
+  override suspend fun addImageWithCheck(request: AddImageRequest): AddImageResponse =
+    comparingMachine.addImageWithCheck(request)
 
   override suspend fun existsImage(request: ExistsImageRequest): ExistsImageResponse =
     comparingMachine.existsImage(request)

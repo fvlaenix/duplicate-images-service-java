@@ -153,6 +153,11 @@ class ImageConnector(private val database: Database) {
     transaction(database) { 
       ImageTable.select { ImageTable.imageId eq imageId }.count() > 0
     }
+  
+  fun deleteById(imageId: String): Boolean =
+    transaction(database) { 
+      ImageTable.deleteWhere { ImageTable.imageId eq imageId } > 0
+    }
 
   private fun addTransactionalImage(
     group: String,

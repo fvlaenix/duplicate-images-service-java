@@ -157,6 +157,10 @@ class ComparingMachine(database: Database) {
     return checkImageResponse { this.imageInfo = CheckImageResponseImageInfo.newBuilder().addAllImageInfo(result).build() }
   }
 
+  fun deleteImage(request: DeleteImageRequest): DeleteImageResponse {
+    return deleteImageResponse { this.isDeleted = connector.deleteById(request.imageId) }
+  }
+  
   fun getImageCompressionSize(): GetCompressionSizeResponse {
     return getCompressionSizeResponse {
       this.x = SIZE_MAX_WIDTH ?: -1

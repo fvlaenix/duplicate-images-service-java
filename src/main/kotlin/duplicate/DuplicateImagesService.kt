@@ -20,6 +20,9 @@ class DuplicateImagesService(database: Database) : DuplicateImagesServiceGrpcKt.
   override suspend fun checkImage(request: CheckImageRequest): CheckImageResponse =
     comparingMachine.checkImage(request)
 
+  override suspend fun deleteImage(request: DeleteImageRequest): DeleteImageResponse =
+    comparingMachine.deleteImage(request)
+
   override suspend fun getImageCompressionSize(request: GetCompressionSizeRequest): GetCompressionSizeResponse =
     comparingMachine.getImageCompressionSize()
 

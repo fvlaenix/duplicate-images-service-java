@@ -156,4 +156,21 @@ class ConnectorTest {
     ).size
     assertEquals(1, simular)
   }
+  
+  @Test
+  fun `delete really deletes picture`() = Context.withImageContext { imageConnector ->
+    val image = BufferedImage(10, 10, BufferedImage.TYPE_INT_RGB)
+    val id = "1"
+    imageConnector.addImageWithCheck(
+      "g",
+      id,
+      "",
+      image,
+      "1.png",
+      0
+    )
+    assertEquals(1, imageConnector.getSimilarImages(image, "g", 1).size)
+    imageConnector.deleteById("1")
+    assertEquals(0, imageConnector.getSimilarImages(image, "g", 1).size)
+  }
 }

@@ -54,7 +54,7 @@ class ComparingMachine(database: Database) {
     val SIZE_MAX_WIDTH: Int? = if (WIDTH <= 0) null else WIDTH
     val SIZE_MAX_HEIGHT: Int? = if (HEIGHT <= 0) null else HEIGHT
     
-    private val COMPARING_COUNT = 32
+    private const val COMPARING_COUNT = 32
 
     @OptIn(DelicateCoroutinesApi::class)
     val newThreadContext = newFixedThreadPoolContext(16, "Comparing machine context")

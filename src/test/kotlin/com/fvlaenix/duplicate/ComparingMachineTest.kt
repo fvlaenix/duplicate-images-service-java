@@ -62,7 +62,7 @@ class ComparingMachineTest {
             this.group = "group-1"
             this.image = image { this.fileName = "file.png"; this.content = ImageUtils.getByteArray(duplicateImage, "PNG").toByteString() }
             this.timestamp = epoch
-          }).imageInfo.imageInfoCount
+          }).imageInfo.imagesCount
         }
       }
       assertEquals(countOfImages * imagesInMessage, comparingResult)
@@ -103,7 +103,7 @@ class ComparingMachineTest {
               this.image = toImage("file.png", image)
               this.timestamp = epoch
             }
-          ).imageInfo.imageInfoCount
+          ).imageInfo.imagesCount
         }
       }
       assertEquals(0, comparingResult)
@@ -139,7 +139,7 @@ class ComparingMachineTest {
           this.image = toImage("file.png", image)
           this.timestamp = 2
         }
-      ).imageInfo.imageInfoCount
+      ).imageInfo.imagesCount
       assertEquals(expected, actualCount)
     }
   }
@@ -171,8 +171,8 @@ class ComparingMachineTest {
       this.image = toImage("b.png", secondImage)
       this.timestamp = 1
     })
-    assertEquals(firstImageSearch.imageInfo.imageInfoList.map { it }, listOf("1"))
-    assertEquals(secondImageSearch.imageInfo.imageInfoList.map { it }, listOf("2"))
+    assertEquals(firstImageSearch.imageInfo.imagesList.map { it.imageId }, listOf("1"))
+    assertEquals(secondImageSearch.imageInfo.imagesList.map { it.imageId }, listOf("2"))
   }
   
   @Test
@@ -197,7 +197,7 @@ class ComparingMachineTest {
       this.image = toImage("a.png", firstImage)
       this.timestamp = 1
     })
-    assertEquals(firstImageSearch.imageInfo.imageInfoList.map { it }.sorted(), listOf("1", "2"))
+    assertEquals(firstImageSearch.imageInfo.imagesList.map { it.imageId }.sorted(), listOf("1", "2"))
   }
   
   @Test
@@ -222,7 +222,7 @@ class ComparingMachineTest {
       this.image = toImage("a.png", firstImage)
       this.timestamp = 1
     })
-    assertEquals(firstImageSearch.imageInfo.imageInfoList.map { it }, listOf("1"))
+    assertEquals(firstImageSearch.imageInfo.imagesList.map { it.imageId }, listOf("1"))
   }
 
   @Test
@@ -247,6 +247,6 @@ class ComparingMachineTest {
       this.image = toImage("a.png", firstImage)
       this.timestamp = 0
     })
-    assertEquals(firstImageSearch.imageInfo.imageInfoList.map { it }, listOf())
+    assertEquals(firstImageSearch.imageInfo.imagesList.map { it.imageId }, listOf())
   }
 }

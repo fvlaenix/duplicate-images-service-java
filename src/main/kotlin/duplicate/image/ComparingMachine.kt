@@ -1,8 +1,10 @@
 package com.fvlaenix.duplicate.image
 
 import com.fvlaenix.duplicate.database.Connector
+import com.fvlaenix.duplicate.database.DuplicateInfoConnector
 import com.fvlaenix.duplicate.database.ImageConnector
 import com.fvlaenix.duplicate.protobuf.*
+import com.fvlaenix.duplicate.protobuf.CheckImageResponseImagesInfoKt.checkImageResponseImageInfo
 import com.fvlaenix.image.protobuf.Image
 import com.luciad.imageio.webp.WebPReadParam
 import kotlinx.coroutines.DelicateCoroutinesApi
@@ -47,8 +49,9 @@ private val HEIGHT = PROPERTIES.getProperty("height")?.toInt() ?: throw IllegalS
 
 class ComparingMachine(database: Database) {
   
-  private val connector = ImageConnector(database)
-
+  private val imageConnector = ImageConnector(database)
+  private val duplicateInfoConnector = DuplicateInfoConnector(database)
+  
   companion object {
     // it is const, but you can change it between launches anyway
     val SIZE_MAX_WIDTH: Int? = if (WIDTH <= 0) null else WIDTH
@@ -105,7 +108,7 @@ class ComparingMachine(database: Database) {
   
   fun addImageWithCheck(request: AddImageRequest): AddImageResponse {
     val image = readImage(request.image) ?: return addImageResponse { this.error = "Can't read image" }
-    val added = connector.addImageWithCheck(
+    val added = imageConnector.addImageWithCheck(
       request.group,
       request.imageId,
       request.additionalInfo,
@@ -114,33 +117,41 @@ class ComparingMachine(database: Database) {
       request.timestamp
     )
     val checkResult = checkImageCandidates(image, added.similarIds)
+    checkResult.forEach { original ->
+      duplicateInfoConnector.add(
+        request.group,
+        original.imageId,
+        request.imageId,
+        original.level
+      )
+    }
     return addImageResponse {
       this.responseOk = addImageResponseOk { 
         this.isAdded = added.isAdded
-        this.imageInfo = CheckImageResponseImageInfo.newBuilder().addAllImageInfo(checkResult).build()
+        this.imageInfo = CheckImageResponseImagesInfo.newBuilder().addAllImages(checkResult).build()
       }
     }
   }
 
   fun existsImage(request: ExistsImageRequest): ExistsImageResponse {
-    return existsImageResponse { this.isExists = connector.isImageExistsById(request.imageInfo) }
+    return existsImageResponse { this.isExists = imageConnector.isImageExistsById(request.imageInfo) }
   }
 
-  private fun checkImageCandidates(image: BufferedImage, ids: List<String>): List<String> {
+  private fun checkImageCandidates(image: BufferedImage, ids: List<String>): List<CheckImageResponseImagesInfo.CheckImageResponseImageInfo> {
     var it = 0
-    val result = ConcurrentLinkedQueue<String>()
+    val result = ConcurrentLinkedQueue<CheckImageResponseImagesInfo.CheckImageResponseImageInfo>()
     while (it < ids.size) {
       val startIndex = it
       val finishIndex = startIndex + COMPARING_COUNT
       val subList = ids.subList(startIndex, min(finishIndex, ids.size))
-      val images = subList.associateWith { connector.getImageById(it) }
+      val images = subList.associateWith { imageConnector.getImageById(it) }
       runBlocking {
         images.forEach { (id, candidate) ->
           if (candidate == null) return@forEach
           launch(newThreadContext) {
             val checkResult = ComparingPictures.comparePictures(candidate.image, image)
             if (checkResult != null) {
-              result.add(id)
+              result.add(checkImageResponseImageInfo { this.imageId = id; this.level = checkResult })
             }
           }
         }
@@ -152,13 +163,15 @@ class ComparingMachine(database: Database) {
   
   fun checkImage(request: CheckImageRequest): CheckImageResponse {
     val image = readImage(request.image) ?: return checkImageResponse { this.error = "Can't read image" }
-    val ids = connector.getSimilarImages(image, request.group, request.timestamp)
+    val ids = imageConnector.getSimilarImages(image, request.group, request.timestamp)
     val result = checkImageCandidates(image, ids)
-    return checkImageResponse { this.imageInfo = CheckImageResponseImageInfo.newBuilder().addAllImageInfo(result).build() }
+    return checkImageResponse { this.imageInfo = CheckImageResponseImagesInfo.newBuilder().addAllImages(result).build() }
   }
 
   fun deleteImage(request: DeleteImageRequest): DeleteImageResponse {
-    return deleteImageResponse { this.isDeleted = connector.deleteById(request.imageId) }
+    val response = deleteImageResponse { this.isDeleted = imageConnector.deleteById(request.imageId) }
+    duplicateInfoConnector.removeById(request.imageId)
+    return response
   }
   
   fun getImageCompressionSize(): GetCompressionSizeResponse {

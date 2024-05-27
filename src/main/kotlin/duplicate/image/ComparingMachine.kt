@@ -151,7 +151,11 @@ class ComparingMachine(database: Database) {
           launch(newThreadContext) {
             val checkResult = ComparingPictures.comparePictures(candidate.image, image)
             if (checkResult != null) {
-              result.add(checkImageResponseImageInfo { this.imageId = id; this.level = checkResult })
+              result.add(checkImageResponseImageInfo { 
+                this.imageId = id
+                this.additionalInfo = candidate.additionalInfo
+                this.level = checkResult 
+              })
             }
           }
         }

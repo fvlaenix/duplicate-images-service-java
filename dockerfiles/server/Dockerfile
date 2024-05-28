@@ -4,7 +4,7 @@ COPY . /working
 WORKDIR /working
 
 RUN rm gradlew gradlew.bat
-RUN gradle jar --console=plain --no-daemon
+RUN gradle check jar --console=plain --no-daemon
 
 FROM openjdk:latest
 COPY --from=builder /working/build/libs/runServer.jar runServer.jar

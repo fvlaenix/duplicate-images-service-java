@@ -39,8 +39,8 @@ class Image(
 }
 
 object ImageTable : Table() {
-  val group = varchar("group", 100)
-  val imageId = varchar("imageId", 1000).primaryKey()
+  val group = varchar("group", 40)
+  val imageId = varchar("imageId", 300).primaryKey()
   val additionalInfo = varchar("additionalInfo", 100)
   val image = blob("image")
   val height = integer("height")

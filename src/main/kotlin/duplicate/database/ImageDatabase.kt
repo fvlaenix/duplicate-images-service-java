@@ -41,7 +41,7 @@ class Image(
 object ImageTable : Table() {
   val group = varchar("group", 40)
   val imageId = varchar("imageId", 300).primaryKey()
-  val additionalInfo = varchar("additionalInfo", 100)
+  val additionalInfo = varchar("additionalInfo", 300)
   val image = blob("image")
   val height = integer("height")
   val width = integer("width")

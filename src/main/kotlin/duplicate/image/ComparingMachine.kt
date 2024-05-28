@@ -107,6 +107,7 @@ class ComparingMachine(database: Database) {
   }
   
   fun addImageWithCheck(request: AddImageRequest): AddImageResponse {
+    LOGGER.log(Level.FINE, "Got addImageRequest: ${request.imageId}")
     val image = readImage(request.image) ?: return addImageResponse { this.error = "Can't read image" }
     val added = imageConnector.addImageWithCheck(
       request.group,
@@ -134,6 +135,7 @@ class ComparingMachine(database: Database) {
   }
 
   fun existsImage(request: ExistsImageRequest): ExistsImageResponse {
+    LOGGER.log(Level.FINE, "Got ExistsImageRequest: ${request.imageInfo}")
     return existsImageResponse { this.isExists = imageConnector.isImageExistsById(request.imageInfo) }
   }
 
@@ -166,6 +168,7 @@ class ComparingMachine(database: Database) {
   }
   
   fun checkImage(request: CheckImageRequest): CheckImageResponse {
+    LOGGER.log(Level.FINE, "Got CheckImageRequest")
     val image = readImage(request.image) ?: return checkImageResponse { this.error = "Can't read image" }
     val ids = imageConnector.getSimilarImages(image, request.group, request.timestamp)
     val result = checkImageCandidates(image, ids)
@@ -173,6 +176,7 @@ class ComparingMachine(database: Database) {
   }
 
   fun deleteImage(request: DeleteImageRequest): DeleteImageResponse {
+    LOGGER.log(Level.FINE, "Got DeleteImageRequest: ${request.imageId}")
     val response = deleteImageResponse { this.isDeleted = imageConnector.deleteById(request.imageId) }
     duplicateInfoConnector.removeById(request.imageId)
     return response
@@ -180,8 +184,9 @@ class ComparingMachine(database: Database) {
   
   fun getImageCompressionSize(): GetCompressionSizeResponse {
     return getCompressionSizeResponse {
-      this.x = SIZE_MAX_WIDTH ?: -1
-      this.y = SIZE_MAX_HEIGHT ?: -1
+      "$SIZE_MAX_WIDTH, $SIZE_MAX_HEIGHT"
+      if (SIZE_MAX_WIDTH != null) this.x = SIZE_MAX_WIDTH
+      if (SIZE_MAX_HEIGHT != null) this.y = SIZE_MAX_HEIGHT
     }
   }
 }

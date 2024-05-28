@@ -1,7 +1,9 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import com.google.protobuf.gradle.id
 
 plugins {
     kotlin("jvm") version "1.9.22"
+    id("com.github.johnrengelman.shadow") version "8.1.1"
     id("com.google.protobuf") version "0.9.4"
 }
 
@@ -48,16 +50,36 @@ dependencies {
     testImplementation("org.jetbrains.kotlin:kotlin-test")
 }
 
+kotlin {
+    jvmToolchain(11)
+}
+
 task<JavaExec>("runServer") {
     classpath = sourceSets.main.get().runtimeClasspath
     mainClass.set("com.fvlaenix.RunServerKt")
 }
 
+fun createJarTaskByJavaExec(name: String) = tasks.create<ShadowJar>("${name}Jar") {
+    mergeServiceFiles()
+    group = "shadow"
+    description = "Run server $name"
+
+    from(sourceSets.main.get().output)
+    from(project.configurations.runtimeClasspath.get().map { if (it.isDirectory) it else zipTree(it) })
+    exclude("META-INF/*.RSA", "META-INF/*.SF", "META-INF/*.DSA")
+    configurations = listOf(project.configurations.runtimeClasspath.get())
+
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    archiveFileName.set("${name}.jar")
+    manifest {
+        attributes["Main-Class"] = (tasks.findByName(name) as JavaExec).mainClass.get()
+    }
+}.apply task@ { tasks.named("jar") { dependsOn(this@task) } }
+
+createJarTaskByJavaExec("runServer")
+
 tasks.test {
     useJUnitPlatform()
-}
-kotlin {
-    jvmToolchain(11)
 }
 
 protobuf {

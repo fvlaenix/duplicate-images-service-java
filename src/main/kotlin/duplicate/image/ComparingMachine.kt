@@ -6,7 +6,6 @@ import com.fvlaenix.duplicate.database.ImageConnector
 import com.fvlaenix.duplicate.protobuf.*
 import com.fvlaenix.duplicate.protobuf.CheckImageResponseImagesInfoKt.checkImageResponseImageInfo
 import com.fvlaenix.image.protobuf.Image
-import com.luciad.imageio.webp.WebPReadParam
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.newFixedThreadPoolContext
@@ -21,7 +20,6 @@ import java.util.logging.Logger
 import javax.imageio.IIOException
 import javax.imageio.ImageIO
 import kotlin.io.path.Path
-import kotlin.io.path.extension
 import kotlin.io.path.inputStream
 import kotlin.io.path.notExists
 import kotlin.math.min
@@ -72,35 +70,26 @@ class ComparingMachine(database: Database) {
   private fun readImage(image: Image): BufferedImage? {
     val byteString = image.content
     val fileName = image.fileName
-    val extension = Path(fileName).extension
     val bufferedImage = try {
-      if (extension == "webp") {
-        val reader = ImageIO.getImageReadersByMIMEType("image/webp").next()
-        val readParam = WebPReadParam()
-        readParam.isBypassFiltering = true
-        byteString.toByteArray().inputStream().use { inputStream ->
-          ImageIO.createImageInputStream(inputStream).use { imageInputStream ->
-            reader.input = imageInputStream
-            reader.read(0, readParam)
-          }
-        }
-      } else {
-        byteString.toByteArray().inputStream().use { stream ->
-          ImageIO.read(stream)
-        }
+      byteString.toByteArray().inputStream().use { stream ->
+        ImageIO.read(stream)
       }
     } catch (e: IIOException) {
       LOGGER.log(Level.SEVERE, "Exception while trying read image with name $fileName", e)
       return null
     }
+    if (bufferedImage == null) {
+      LOGGER.log(Level.SEVERE, "Can't read image with data $fileName")
+      return null
+    }
     val maxWidth = SIZE_MAX_WIDTH
     val maxHeight = SIZE_MAX_HEIGHT
-    if (maxWidth != null && bufferedImage.width != maxWidth) {
-      LOGGER.log(Level.WARNING, "Can't read image with incompatible size")
+    if (maxWidth != null && bufferedImage.width > maxWidth) {
+      LOGGER.log(Level.WARNING, "Can't read image with incompatible size: width needed: $maxWidth. Found: ${bufferedImage.width}")
       return Thumbnails.of(bufferedImage).width(maxWidth).asBufferedImage()
     }
-    if (maxHeight != null && bufferedImage.height != maxHeight) {
-      LOGGER.log(Level.WARNING, "Can't read image with incompatible size")
+    if (maxHeight != null && bufferedImage.height > maxHeight) {
+      LOGGER.log(Level.WARNING, "Can't read image with incompatible size: height needed: $maxHeight. Found: ${bufferedImage.height}")
       return Thumbnails.of(bufferedImage).height(maxHeight).asBufferedImage()
     }
     return bufferedImage
@@ -108,7 +97,7 @@ class ComparingMachine(database: Database) {
   
   fun addImageWithCheck(request: AddImageRequest): AddImageResponse {
     LOGGER.log(Level.FINE, "Got addImageRequest: ${request.imageId}")
-    val image = readImage(request.image) ?: return addImageResponse { this.error = "Can't read image" }
+    val image = readImage(request.image) ?: return addImageResponse { this.error = "Can't read image with id ${request.imageId}" }
     val added = imageConnector.addImageWithCheck(
       request.group,
       request.imageId,

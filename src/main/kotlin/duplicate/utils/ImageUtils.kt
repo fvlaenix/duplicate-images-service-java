@@ -15,9 +15,7 @@ object ImageUtils {
   
   fun getImageBlob(image: BufferedImage?, extension: String) : SerialBlob? {
     if (image == null) return null
-    val os = ByteArrayOutputStream()
-    ImageIO.write(image, extension, os)
-    return SerialBlob(os.toByteArray())
+    return SerialBlob(getByteArray(image, extension))
   }
 
   fun getImageFromBlob(serialBlob: SerialBlob?) : BufferedImage? =

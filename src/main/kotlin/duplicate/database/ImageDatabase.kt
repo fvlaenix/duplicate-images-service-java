@@ -197,27 +197,6 @@ class ImageConnector(private val database: Database) {
     }
   }
 
-  fun get(resultRow: ResultRow): Image? {
-    val image = ImageUtils.getImageFromBlob(SerialBlob(resultRow[ImageTable.image]))
-    return if (image == null) {
-      LOGGER.log(Level.SEVERE, "Failed image read. Id: ${resultRow[ImageTable.imageId]}")
-      null
-    } else {
-      Image(
-        resultRow[ImageTable.group],
-        resultRow[ImageTable.imageId],
-        resultRow[ImageTable.additionalInfo],
-        image,
-        size { x = resultRow[ImageTable.width]; y = resultRow[ImageTable.height] },
-        resultRow[ImageTable.fileName],
-        resultRow[ImageTable.timestamp],
-        ImageTable.leftUpper.getRGB(resultRow),
-        ImageTable.center.getRGB(resultRow),
-        ImageTable.rightBottom.getRGB(resultRow)
-      )
-    }
-  }
-
   class Brackets<T>(private val e1: ExpressionWithColumnType<T>, override val columnType: IColumnType) : ExpressionWithColumnType<T>() {
     override fun toQueryBuilder(queryBuilder: QueryBuilder) = queryBuilder { append("(", e1, ")") }
   }
@@ -237,5 +216,26 @@ class ImageConnector(private val database: Database) {
 
     fun <T> ExpressionWithColumnType<T>.lessThenTolerance(): Op<Boolean> =
       this.less(TOLERANCE_PER_POINT)
+
+    fun get(resultRow: ResultRow): Image? {
+      val image = ImageUtils.getImageFromBlob(SerialBlob(resultRow[ImageTable.image]))
+      return if (image == null) {
+        LOGGER.log(Level.SEVERE, "Failed image read. Id: ${resultRow[ImageTable.imageId]}")
+        null
+      } else {
+        Image(
+          resultRow[ImageTable.group],
+          resultRow[ImageTable.imageId],
+          resultRow[ImageTable.additionalInfo],
+          image,
+          size { x = resultRow[ImageTable.width]; y = resultRow[ImageTable.height] },
+          resultRow[ImageTable.fileName],
+          resultRow[ImageTable.timestamp],
+          ImageTable.leftUpper.getRGB(resultRow),
+          ImageTable.center.getRGB(resultRow),
+          ImageTable.rightBottom.getRGB(resultRow)
+        )
+      }
+    }
   }
 }

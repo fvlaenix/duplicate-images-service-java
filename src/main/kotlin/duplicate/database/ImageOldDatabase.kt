@@ -1,8 +1,8 @@
 package com.fvlaenix.duplicate.database
 
-import com.fvlaenix.duplicate.database.ImageConnector.Companion.lessThenTolerance
-import com.fvlaenix.duplicate.database.ImageConnector.Companion.listSum
-import com.fvlaenix.duplicate.database.ImageConnector.Companion.sqr
+import com.fvlaenix.duplicate.database.ImageOldConnector.Companion.lessThenTolerance
+import com.fvlaenix.duplicate.database.ImageOldConnector.Companion.listSum
+import com.fvlaenix.duplicate.database.ImageOldConnector.Companion.sqr
 import com.fvlaenix.duplicate.image.ComparingPictures.TOLERANCE_PER_POINT
 import com.fvlaenix.duplicate.protobuf.Size
 import com.fvlaenix.duplicate.protobuf.size
@@ -23,7 +23,8 @@ import javax.sql.rowset.serial.SerialBlob
 import kotlin.io.path.Path
 import kotlin.io.path.extension
 
-class Image(
+@Deprecated(message = "Use new Image")
+class ImageOld(
   val group: String,
   val imageId: String, // unique for each image
   val additionalInfo: String,
@@ -38,7 +39,8 @@ class Image(
   data class RGB(val red: Int, val green: Int, val blue: Int)
 }
 
-object ImageTable : Table() {
+@Deprecated(message = "Use new Image")
+object ImageOldTable : Table() {
   val group = varchar("group", 40)
   val imageId = varchar("imageId", 400).primaryKey()
   val additionalInfo = varchar("additionalInfo", 400)
@@ -76,7 +78,7 @@ object ImageTable : Table() {
       return getPixel(image).getBlue()
     }
 
-    fun insert(insertStatement: InsertStatement<Number>, rgb: Image.RGB) {
+    fun insert(insertStatement: InsertStatement<Number>, rgb: ImageOld.RGB) {
       insertStatement[red] = rgb.red
       insertStatement[green] = rgb.green
       insertStatement[blue] = rgb.blue
@@ -92,15 +94,15 @@ object ImageTable : Table() {
       }
     }
 
-    fun getRGB(image: BufferedImage): Image.RGB {
-      return Image.RGB(getRed(image), getGreen(image), getBlue(image))
+    fun getRGB(image: BufferedImage): ImageOld.RGB {
+      return ImageOld.RGB(getRed(image), getGreen(image), getBlue(image))
     }
 
-    fun getRGB(resultRow: ResultRow): Image.RGB {
+    fun getRGB(resultRow: ResultRow): ImageOld.RGB {
       val red = resultRow[red]!!
       val green = resultRow[green]!!
       val blue = resultRow[blue]!!
-      return Image.RGB(red, green, blue)
+      return ImageOld.RGB(red, green, blue)
     }
   }
 
@@ -114,27 +116,28 @@ object ImageTable : Table() {
   }
 }
 
-private val LOGGER: Logger = Logger.getLogger(ImageConnector::class.java.simpleName)
+private val LOGGER: Logger = Logger.getLogger(ImageOldConnector::class.java.simpleName)
 
-class ImageConnector(private val database: Database) {
+@Deprecated(message = "Use new Image")
+class ImageOldConnector(private val database: Database) {
 
   init {
     transaction(database) {
-      SchemaUtils.create(ImageTable)
+      SchemaUtils.create(ImageOldTable)
     }
   }
 
   private fun getTransactionalSimilarImages(image: BufferedImage, group: String, timeStamp: Long): List<String> {
-    return ImageTable
+    return ImageOldTable
       .select {
-        (ImageTable.leftUpper.toSimilar(image))
-          .and(ImageTable.center.toSimilar(image))
-          .and(ImageTable.rightBottom.toSimilar(image))
-          .and(ImageTable.height eq image.height)
-          .and(ImageTable.width eq image.width)
-          .and(ImageTable.group eq group)
-          .and(ImageTable.timestamp less timeStamp)
-      }.map { it[ImageTable.imageId] }.apply {
+        (ImageOldTable.leftUpper.toSimilar(image))
+          .and(ImageOldTable.center.toSimilar(image))
+          .and(ImageOldTable.rightBottom.toSimilar(image))
+          .and(ImageOldTable.height eq image.height)
+          .and(ImageOldTable.width eq image.width)
+          .and(ImageOldTable.group eq group)
+          .and(ImageOldTable.timestamp less timeStamp)
+      }.map { it[ImageOldTable.imageId] }.apply {
         if (this.size > 100) LOGGER.log(Level.WARNING, "Count of taken images is ${this.size}")
       }
   }
@@ -144,19 +147,19 @@ class ImageConnector(private val database: Database) {
       getTransactionalSimilarImages(image, group, timeStamp)
     }
 
-  fun getImageById(imageId: String): Image? =
+  fun getImageById(imageId: String): ImageOld? =
     transaction(database) {
-      ImageTable.select { ImageTable.imageId eq imageId }.map { get(it) }.firstNotNullOfOrNull { it }
+      ImageOldTable.select { ImageOldTable.imageId eq imageId }.map { get(it) }.firstNotNullOfOrNull { it }
     }
   
   fun isImageExistsById(imageId: String): Boolean =
     transaction(database) { 
-      ImageTable.select { ImageTable.imageId eq imageId }.count() > 0
+      ImageOldTable.select { ImageOldTable.imageId eq imageId }.count() > 0
     }
   
   fun deleteById(imageId: String): Boolean =
     transaction(database) { 
-      ImageTable.deleteWhere { ImageTable.imageId eq imageId } > 0
+      ImageOldTable.deleteWhere { ImageOldTable.imageId eq imageId } > 0
     }
 
   private fun addTransactionalImage(
@@ -168,17 +171,17 @@ class ImageConnector(private val database: Database) {
     timeStamp: Long,
     blob: SerialBlob
   ): Boolean {
-    val images = ImageTable.select { ImageTable.imageId eq imageId }.mapNotNull { get(it) }
+    val images = ImageOldTable.select { ImageOldTable.imageId eq imageId }.mapNotNull { get(it) }
     if (images.isNotEmpty()) return false
-    else ImageTable.insert {
-      it[ImageTable.group] = group
-      it[ImageTable.imageId] = imageId
-      it[ImageTable.additionalInfo] = additionalInfo
-      it[ImageTable.image] = blob
-      it[ImageTable.height] = image.height
-      it[ImageTable.width] = image.width
-      it[ImageTable.fileName] = fileName
-      it[ImageTable.timestamp] = timeStamp
+    else ImageOldTable.insert {
+      it[ImageOldTable.group] = group
+      it[ImageOldTable.imageId] = imageId
+      it[ImageOldTable.additionalInfo] = additionalInfo
+      it[ImageOldTable.image] = blob
+      it[ImageOldTable.height] = image.height
+      it[ImageOldTable.width] = image.width
+      it[ImageOldTable.fileName] = fileName
+      it[ImageOldTable.timestamp] = timeStamp
       leftUpper.insert(it, image)
       center.insert(it, image)
       rightBottom.insert(it, image)
@@ -197,23 +200,23 @@ class ImageConnector(private val database: Database) {
     }
   }
 
-  fun get(resultRow: ResultRow): Image? {
-    val image = ImageUtils.getImageFromBlob(SerialBlob(resultRow[ImageTable.image]))
+  fun get(resultRow: ResultRow): ImageOld? {
+    val image = ImageUtils.getImageFromBlob(SerialBlob(resultRow[ImageOldTable.image]))
     return if (image == null) {
-      LOGGER.log(Level.SEVERE, "Failed image read. Id: ${resultRow[ImageTable.imageId]}")
+      LOGGER.log(Level.SEVERE, "Failed image read. Id: ${resultRow[ImageOldTable.imageId]}")
       null
     } else {
-      Image(
-        resultRow[ImageTable.group],
-        resultRow[ImageTable.imageId],
-        resultRow[ImageTable.additionalInfo],
+      ImageOld(
+        resultRow[ImageOldTable.group],
+        resultRow[ImageOldTable.imageId],
+        resultRow[ImageOldTable.additionalInfo],
         image,
-        size { x = resultRow[ImageTable.width]; y = resultRow[ImageTable.height] },
-        resultRow[ImageTable.fileName],
-        resultRow[ImageTable.timestamp],
-        ImageTable.leftUpper.getRGB(resultRow),
-        ImageTable.center.getRGB(resultRow),
-        ImageTable.rightBottom.getRGB(resultRow)
+        size { x = resultRow[ImageOldTable.width]; y = resultRow[ImageOldTable.height] },
+        resultRow[ImageOldTable.fileName],
+        resultRow[ImageOldTable.timestamp],
+        ImageOldTable.leftUpper.getRGB(resultRow),
+        ImageOldTable.center.getRGB(resultRow),
+        ImageOldTable.rightBottom.getRGB(resultRow)
       )
     }
   }

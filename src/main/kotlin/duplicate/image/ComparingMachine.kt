@@ -2,7 +2,7 @@ package com.fvlaenix.duplicate.image
 
 import com.fvlaenix.duplicate.database.Connector
 import com.fvlaenix.duplicate.database.DuplicateInfoConnector
-import com.fvlaenix.duplicate.database.ImageConnector
+import com.fvlaenix.duplicate.database.ImageOldConnector
 import com.fvlaenix.duplicate.protobuf.*
 import com.fvlaenix.duplicate.protobuf.CheckImageResponseImagesInfoKt.checkImageResponseImageInfo
 import com.fvlaenix.image.protobuf.Image
@@ -47,7 +47,7 @@ private val HEIGHT = PROPERTIES.getProperty("height")?.toInt() ?: throw IllegalS
 
 class ComparingMachine(database: Database) {
   
-  private val imageConnector = ImageConnector(database)
+  private val imageOldConnector = ImageOldConnector(database)
   private val duplicateInfoConnector = DuplicateInfoConnector(database)
   
   companion object {
@@ -98,7 +98,7 @@ class ComparingMachine(database: Database) {
   fun addImageWithCheck(request: AddImageRequest): AddImageResponse {
     LOGGER.log(Level.FINE, "Got addImageRequest: ${request.imageId}")
     val image = readImage(request.image) ?: return addImageResponse { this.error = "Can't read image with id ${request.imageId}" }
-    val added = imageConnector.addImageWithCheck(
+    val added = imageOldConnector.addImageWithCheck(
       request.group,
       request.imageId,
       request.additionalInfo,
@@ -125,7 +125,7 @@ class ComparingMachine(database: Database) {
 
   fun existsImage(request: ExistsImageRequest): ExistsImageResponse {
     LOGGER.log(Level.FINE, "Got ExistsImageRequest: ${request.imageInfo}")
-    return existsImageResponse { this.isExists = imageConnector.isImageExistsById(request.imageInfo) }
+    return existsImageResponse { this.isExists = imageOldConnector.isImageExistsById(request.imageInfo) }
   }
 
   private fun checkImageCandidates(image: BufferedImage, ids: List<String>): List<CheckImageResponseImagesInfo.CheckImageResponseImageInfo> {
@@ -135,7 +135,7 @@ class ComparingMachine(database: Database) {
       val startIndex = it
       val finishIndex = startIndex + COMPARING_COUNT
       val subList = ids.subList(startIndex, min(finishIndex, ids.size))
-      val images = subList.associateWith { imageConnector.getImageById(it) }
+      val images = subList.associateWith { imageOldConnector.getImageById(it) }
       runBlocking {
         images.forEach { (id, candidate) ->
           if (candidate == null) return@forEach
@@ -159,14 +159,14 @@ class ComparingMachine(database: Database) {
   fun checkImage(request: CheckImageRequest): CheckImageResponse {
     LOGGER.log(Level.FINE, "Got CheckImageRequest")
     val image = readImage(request.image) ?: return checkImageResponse { this.error = "Can't read image" }
-    val ids = imageConnector.getSimilarImages(image, request.group, request.timestamp)
+    val ids = imageOldConnector.getSimilarImages(image, request.group, request.timestamp)
     val result = checkImageCandidates(image, ids)
     return checkImageResponse { this.imageInfo = CheckImageResponseImagesInfo.newBuilder().addAllImages(result).build() }
   }
 
   fun deleteImage(request: DeleteImageRequest): DeleteImageResponse {
     LOGGER.log(Level.FINE, "Got DeleteImageRequest: ${request.imageId}")
-    val response = deleteImageResponse { this.isDeleted = imageConnector.deleteById(request.imageId) }
+    val response = deleteImageResponse { this.isDeleted = imageOldConnector.deleteById(request.imageId) }
     duplicateInfoConnector.removeById(request.imageId)
     return response
   }

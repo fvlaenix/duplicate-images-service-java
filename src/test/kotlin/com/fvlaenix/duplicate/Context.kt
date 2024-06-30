@@ -1,7 +1,7 @@
 package com.fvlaenix.duplicate
 
-import com.fvlaenix.duplicate.database.ImageConnector
-import com.fvlaenix.duplicate.database.ImageTable
+import com.fvlaenix.duplicate.database.ImageOldConnector
+import com.fvlaenix.duplicate.database.ImageOldTable
 import com.fvlaenix.duplicate.image.ComparingMachine
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
@@ -26,13 +26,13 @@ object Context {
     }
   }
   
-  fun <T> withImageContext(body: (ImageConnector) -> T): T = withDatabaseContext { database ->
-    val connector = ImageConnector(database)
+  fun <T> withImageContext(body: (ImageOldConnector) -> T): T = withDatabaseContext { database ->
+    val connector = ImageOldConnector(database)
     return@withDatabaseContext try {
       body(connector)
     } finally {
       transaction(database) {
-        SchemaUtils.drop(ImageTable)
+        SchemaUtils.drop(ImageOldTable)
       }
     }
   }
@@ -43,7 +43,7 @@ object Context {
       body(comparingMachine)
     } finally {
       transaction(database) {
-        SchemaUtils.drop(ImageTable)
+        SchemaUtils.drop(ImageOldTable)
       }
     }
   }

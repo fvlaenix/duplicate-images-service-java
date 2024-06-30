@@ -37,15 +37,8 @@ jobs:
 
         SERVER_FILE: dockerfiles/server/Dockerfile
 
-        PLATFORM_AMD64: linux/amd64
-        IMAGE_TAG_SERVER_AMD64: latest-server-amd64
-
-        PLATFORM_ARM64: linux/arm64/v8
-        IMAGE_TAG_SERVER_ARM64: latest-server-arm64
+        IMAGE_TAG: latest
       run: |
         
-        docker buildx build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG_SERVER_AMD64 . --file $SERVER_FILE --platform $PLATFORM_AMD64
-        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG_SERVER_AMD64
-        
-        docker buildx build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG_SERVER_ARM64 . --file $SERVER_FILE --platform $PLATFORM_ARM64
-        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG_SERVER_ARM64
+        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:IMAGE_TAG . --file $SERVER_FILE
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:IMAGE_TAG

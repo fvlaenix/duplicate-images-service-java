@@ -1,8 +1,6 @@
 package com.fvlaenix.duplicate.image
 
-import com.fvlaenix.duplicate.database.Connector
-import com.fvlaenix.duplicate.database.DuplicateInfoConnector
-import com.fvlaenix.duplicate.database.ImageOldConnector
+import com.fvlaenix.duplicate.database.*
 import com.fvlaenix.duplicate.protobuf.*
 import com.fvlaenix.duplicate.protobuf.CheckImageResponseImagesInfoKt.checkImageResponseImageInfo
 import com.fvlaenix.image.protobuf.Image
@@ -12,6 +10,7 @@ import kotlinx.coroutines.newFixedThreadPoolContext
 import kotlinx.coroutines.runBlocking
 import net.coobird.thumbnailator.Thumbnails
 import org.jetbrains.exposed.sql.Database
+import org.jetbrains.exposed.sql.deleteWhere
 import java.awt.image.BufferedImage
 import java.util.*
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -46,8 +45,9 @@ private val WIDTH = PROPERTIES.getProperty("width")?.toInt() ?: throw IllegalSta
 private val HEIGHT = PROPERTIES.getProperty("height")?.toInt() ?: throw IllegalStateException("height should exists in properties")
 
 class ComparingMachine(database: Database) {
-  
-  private val imageOldConnector = ImageOldConnector(database)
+
+  private val imageConnector = ImageConnector(database)
+  private val imageHashConnector = ImageHashConnector(database)
   private val duplicateInfoConnector = DuplicateInfoConnector(database)
   
   companion object {
@@ -96,57 +96,80 @@ class ComparingMachine(database: Database) {
   }
   
   fun addImageWithCheck(request: AddImageRequest): AddImageResponse {
-    LOGGER.log(Level.FINE, "Got addImageRequest: ${request.imageId}")
-    val image = readImage(request.image) ?: return addImageResponse { this.error = "Can't read image with id ${request.imageId}" }
-    val added = imageOldConnector.addImageWithCheck(
-      request.group,
-      request.imageId,
-      request.additionalInfo,
-      image,
-      request.image.fileName,
-      request.timestamp
+    LOGGER.log(Level.FINE, "Got addImageRequest: ${request.messageId}-${request.numberInMessage}")
+    val image = readImage(request.image) ?: return addImageResponse {
+      this.error = "Can't read image with id ${request.messageId}-${request.numberInMessage}"
+    }
+    val imageId = imageConnector.withConnect {
+      val ids = imageConnector.getId(request.messageId, request.numberInMessage)
+      if (ids != null) return@withConnect ids
+      imageConnector.new(
+        group = request.group,
+        messageId = request.messageId,
+        numberInMessage = request.numberInMessage,
+        additionalInfo = request.additionalInfo,
+        fileName = request.image.fileName,
+        image = image
+      )
+    }
+    val added = imageHashConnector.addImageWithCheck(
+      id = imageId,
+      group = request.group,
+      timestamp = request.timestamp,
+      image = image
     )
+
     val checkResult = checkImageCandidates(image, added.similarIds)
     checkResult.forEach { original ->
       duplicateInfoConnector.add(
         request.group,
-        original.imageId,
-        request.imageId,
-        original.level
+        original.id,
+        imageId,
+        original.info.level
       )
     }
     return addImageResponse {
       this.responseOk = addImageResponseOk { 
         this.isAdded = added.isAdded
-        this.imageInfo = CheckImageResponseImagesInfo.newBuilder().addAllImages(checkResult).build()
+        this.imageInfo = CheckImageResponseImagesInfo.newBuilder().addAllImages(checkResult.map { it.info }).build()
       }
     }
   }
 
   fun existsImage(request: ExistsImageRequest): ExistsImageResponse {
-    LOGGER.log(Level.FINE, "Got ExistsImageRequest: ${request.imageInfo}")
-    return existsImageResponse { this.isExists = imageOldConnector.isImageExistsById(request.imageInfo) }
+    LOGGER.log(Level.FINE, "Got ExistsImageRequest: ${request.messageId}-${request.numberInMessage}")
+    return existsImageResponse {
+      this.isExists = imageConnector.getId(request.messageId, request.numberInMessage) != null
+    }
   }
 
-  private fun checkImageCandidates(image: BufferedImage, ids: List<String>): List<CheckImageResponseImagesInfo.CheckImageResponseImageInfo> {
+  class ResultCheck(
+    val id: Long,
+    val info: CheckImageResponseImagesInfo.CheckImageResponseImageInfo
+  )
+
+  private fun checkImageCandidates(image: BufferedImage, ids: List<Long>): List<ResultCheck> {
     var it = 0
-    val result = ConcurrentLinkedQueue<CheckImageResponseImagesInfo.CheckImageResponseImageInfo>()
+    val result = ConcurrentLinkedQueue<ResultCheck>()
     while (it < ids.size) {
       val startIndex = it
       val finishIndex = startIndex + COMPARING_COUNT
       val subList = ids.subList(startIndex, min(finishIndex, ids.size))
-      val images = subList.associateWith { imageOldConnector.getImageById(it) }
+      val images = subList.mapNotNull { imageConnector.findById(it) }
       runBlocking {
-        images.forEach { (id, candidate) ->
-          if (candidate == null) return@forEach
+        images.forEach { candidate ->
           launch(newThreadContext) {
             val checkResult = ComparingPictures.comparePictures(candidate.image, image)
             if (checkResult != null) {
-              result.add(checkImageResponseImageInfo { 
-                this.imageId = id
-                this.additionalInfo = candidate.additionalInfo
-                this.level = checkResult 
-              })
+              result.add(ResultCheck(
+                id = candidate.id,
+                info = checkImageResponseImageInfo {
+                  this.messageId = candidate.messageId
+                  this.numberInMessage = candidate.numberInMessage
+                  this.additionalInfo = candidate.additionalInfo
+                  this.level = checkResult
+                }
+              ))
             }
           }
         }
@@ -159,15 +182,28 @@ class ComparingMachine(database: Database) {
   fun checkImage(request: CheckImageRequest): CheckImageResponse {
     LOGGER.log(Level.FINE, "Got CheckImageRequest")
     val image = readImage(request.image) ?: return checkImageResponse { this.error = "Can't read image" }
-    val ids = imageOldConnector.getSimilarImages(image, request.group, request.timestamp)
+    val ids = imageHashConnector.imageCheck(request.group, request.timestamp, image)
     val result = checkImageCandidates(image, ids)
-    return checkImageResponse { this.imageInfo = CheckImageResponseImagesInfo.newBuilder().addAllImages(result).build() }
+    return checkImageResponse {
+      this.imageInfo = CheckImageResponseImagesInfo.newBuilder().addAllImages(result.map { it.info }).build()
+    }
   }
 
   fun deleteImage(request: DeleteImageRequest): DeleteImageResponse {
-    LOGGER.log(Level.FINE, "Got DeleteImageRequest: ${request.imageId}")
-    val response = deleteImageResponse { this.isDeleted = imageOldConnector.deleteById(request.imageId) }
-    duplicateInfoConnector.removeById(request.imageId)
+    LOGGER.log(Level.FINE, "Got DeleteImageRequest: ${request.messageId}-${request.numberInMessage}")
+    val id = imageConnector.withConnect {
+      val id = imageConnector.getId(messageId = request.messageId, numberInMessage = request.numberInMessage)
+        ?: return@withConnect null
+      ImageTable.deleteWhere { ImageTable.id eq id }
+      id
+    }
+    if (id != null) {
+      imageHashConnector.deleteById(id)
+      duplicateInfoConnector.removeById(id)
+    }
+    val response = deleteImageResponse {
+      this.isDeleted = id != null
+    }
     return response
   }
   

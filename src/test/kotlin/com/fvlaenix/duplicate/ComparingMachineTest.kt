@@ -1,6 +1,5 @@
 package com.fvlaenix.duplicate
 
-import com.fvlaenix.duplicate.image.ComparingPictures
 import com.fvlaenix.duplicate.protobuf.addImageRequest
 import com.fvlaenix.duplicate.protobuf.checkImageRequest
 import com.fvlaenix.duplicate.utils.ImageUtils
@@ -18,18 +17,11 @@ import kotlin.test.assertTrue
 class ComparingMachineTest {
 
   private fun generateNewImage(number: Int): BufferedImage {
-    val newImage = BufferedImage(400, 400, BufferedImage.TYPE_INT_RGB)
-    var imageDivider = number
-    val r = imageDivider % 255
-    imageDivider /= 255
-    val g = imageDivider % 255
-    imageDivider /= 255
-    val b = imageDivider % 255
-    imageDivider /= 255
-    if (imageDivider != 0) {
+    val newImage = BufferedImage(8, 8, BufferedImage.TYPE_INT_RGB)
+    if (number >= 255) {
       throw IllegalStateException("Can't generate same images because color is over")
     }
-    newImage.setRGB(0, 0, Color(r, g, b).rgb)
+    newImage.setRGB(0, 0, Color(number, number, number).rgb)
     return newImage
   }
   
@@ -49,7 +41,8 @@ class ComparingMachineTest {
         comparingMachine.addImageWithCheck(
           addImageRequest { 
             this.group = "group-1"
-            this.imageId = "{messageId:$messageId,numberInMessage:$numberInMessage}"
+            this.messageId = messageId.toString()
+            this.numberInMessage = numberInMessage
             this.image = image { this.fileName = "file.png"; this.content = ImageUtils.getByteArray(duplicateImage, "PNG").toByteString() }
             this.timestamp = epoch
           }
@@ -72,7 +65,6 @@ class ComparingMachineTest {
 
   @Test
   fun `no duplicates test`() = Context.withComparingMachine { comparingMachine ->
-    ComparingPictures.TEST_TOLERANCE = 1
     var imageCount = 0
     fun generateNewImage(): BufferedImage {
       val image = generateNewImage(imageCount)
@@ -88,7 +80,8 @@ class ComparingMachineTest {
         comparingMachine.addImageWithCheck(
           addImageRequest {
             this.group = "group"
-            this.imageId = "{messageId:$messageId,numberInMessage:$numberInMessage}"
+            this.messageId = messageId.toString()
+            this.numberInMessage = numberInMessage
             this.image = toImage("file.png", image)
             this.timestamp = epoch
           }
@@ -112,7 +105,6 @@ class ComparingMachineTest {
 
   @Test
   fun `random test`() = Context.withComparingMachine { comparingMachine ->
-    ComparingPictures.TEST_TOLERANCE = 1
     val images = mutableMapOf<Int, Int>()
 
     repeat(50) { number ->
@@ -121,7 +113,8 @@ class ComparingMachineTest {
       val image = generateNewImage(randomSeed)
       val resultAdding = comparingMachine.addImageWithCheck(addImageRequest {
         this.group = "group-1"
-        this.imageId = "{messageId:$number}"
+        this.messageId = "$number"
+        this.numberInMessage = 0
         this.additionalInfo = ""
         this.image = toImage("file.png", image)
         this.timestamp = 1
@@ -145,19 +138,20 @@ class ComparingMachineTest {
   }
   
   @Test
-  fun `added image have same image info`() = Context.withComparingMachine { comparingMachine -> 
-    ComparingPictures.TEST_TOLERANCE = 1
+  fun `added image have same image info`() = Context.withComparingMachine { comparingMachine ->
     val firstImage = generateNewImage(0)
     val secondImage = generateNewImage(1)
     comparingMachine.addImageWithCheck(addImageRequest { 
       this.group = "1"
-      this.imageId = "1"
+      this.messageId = "1"
+      this.numberInMessage = 0
       this.image = toImage("a.png", firstImage)
       this.timestamp = 0 
     })
     comparingMachine.addImageWithCheck(addImageRequest { 
       this.group = "1"
-      this.imageId = "2"
+      this.messageId = "2"
+      this.numberInMessage = 0
       this.image = toImage("b.png", secondImage)
       this.timestamp = 0
     })
@@ -171,24 +165,25 @@ class ComparingMachineTest {
       this.image = toImage("b.png", secondImage)
       this.timestamp = 1
     })
-    assertEquals(firstImageSearch.imageInfo.imagesList.map { it.imageId }, listOf("1"))
-    assertEquals(secondImageSearch.imageInfo.imagesList.map { it.imageId }, listOf("2"))
+    assertEquals(listOf("1"), firstImageSearch.imageInfo.imagesList.map { it.messageId })
+    assertEquals(listOf("2"), secondImageSearch.imageInfo.imagesList.map { it.messageId })
   }
   
   @Test
   fun `test two images`() = Context.withComparingMachine { comparingMachine ->
-    ComparingPictures.TEST_TOLERANCE = 1
     val firstImage = generateNewImage(0)
     val secondImage = generateNewImage(0)
     comparingMachine.addImageWithCheck(addImageRequest {
       this.group = "1"
-      this.imageId = "1"
+      this.messageId = "1"
+      this.numberInMessage = 0
       this.image = toImage("a.png", firstImage)
       this.timestamp = 0
     })
     comparingMachine.addImageWithCheck(addImageRequest {
       this.group = "1"
-      this.imageId = "2"
+      this.messageId = "2"
+      this.numberInMessage = 0
       this.image = toImage("b.png", secondImage)
       this.timestamp = 0
     })
@@ -197,23 +192,24 @@ class ComparingMachineTest {
       this.image = toImage("a.png", firstImage)
       this.timestamp = 1
     })
-    assertEquals(firstImageSearch.imageInfo.imagesList.map { it.imageId }.sorted(), listOf("1", "2"))
+    assertEquals(firstImageSearch.imageInfo.imagesList.map { it.messageId }.sorted(), listOf("1", "2"))
   }
   
   @Test
   fun `two different groups`() = Context.withComparingMachine { comparingMachine ->
-    ComparingPictures.TEST_TOLERANCE = 1
     val firstImage = generateNewImage(0)
     val secondImage = generateNewImage(0)
     comparingMachine.addImageWithCheck(addImageRequest {
       this.group = "1"
-      this.imageId = "1"
+      this.messageId = "1"
+      this.numberInMessage = 0
       this.image = toImage("a.png", firstImage)
       this.timestamp = 0
     })
     comparingMachine.addImageWithCheck(addImageRequest {
       this.group = "2"
-      this.imageId = "2"
+      this.messageId = "2"
+      this.numberInMessage = 0
       this.image = toImage("b.png", secondImage)
       this.timestamp = 0
     })
@@ -222,23 +218,24 @@ class ComparingMachineTest {
       this.image = toImage("a.png", firstImage)
       this.timestamp = 1
     })
-    assertEquals(firstImageSearch.imageInfo.imagesList.map { it.imageId }, listOf("1"))
+    assertEquals(firstImageSearch.imageInfo.imagesList.map { it.messageId }, listOf("1"))
   }
 
   @Test
   fun `less timestamp`() = Context.withComparingMachine { comparingMachine ->
-    ComparingPictures.TEST_TOLERANCE = 1
     val firstImage = generateNewImage(0)
     val secondImage = generateNewImage(0)
     comparingMachine.addImageWithCheck(addImageRequest {
       this.group = "1"
-      this.imageId = "1"
+      this.messageId = "1"
+      this.numberInMessage = 0
       this.image = toImage("a.png", firstImage)
       this.timestamp = 0
     })
     comparingMachine.addImageWithCheck(addImageRequest {
       this.group = "2"
-      this.imageId = "2"
+      this.messageId = "2"
+      this.numberInMessage = 0
       this.image = toImage("b.png", secondImage)
       this.timestamp = 0
     })
@@ -247,6 +244,25 @@ class ComparingMachineTest {
       this.image = toImage("a.png", firstImage)
       this.timestamp = 0
     })
-    assertEquals(firstImageSearch.imageInfo.imagesList.map { it.imageId }, listOf())
+    assertEquals(firstImageSearch.imageInfo.imagesList.map { it.messageId }, listOf())
+  }
+
+  @Test
+  fun `additional info is saved`() = Context.withComparingMachine { comparingMachine ->
+    val firstImage = generateNewImage(0)
+    comparingMachine.addImageWithCheck(addImageRequest {
+      this.group = "1"
+      this.messageId = "1"
+      this.numberInMessage = 0
+      this.image = toImage("a.png", firstImage)
+      this.additionalInfo = ":abracadabra:"
+      this.timestamp = 0
+    })
+    val checkResult = comparingMachine.checkImage(checkImageRequest {
+      this.group = "1"
+      this.image = toImage("a.png", firstImage)
+      this.timestamp = 2
+    })
+    assertEquals(":abracadabra:", checkResult.imageInfo.imagesList[0].additionalInfo)
   }
 }

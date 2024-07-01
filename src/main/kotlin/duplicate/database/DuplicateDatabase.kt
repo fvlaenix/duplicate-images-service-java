@@ -5,15 +5,15 @@ import org.jetbrains.exposed.sql.transactions.transaction
 
 data class DuplicateInfo(
   val group: String,
-  val originalImageId: String,
-  val duplicateImageId: String,
+  val originalImageId: Long,
+  val duplicateImageId: Long,
   val level: Long
 )
 
 object DuplicateInfoTable : Table() {
   val group = varchar("group", 100)
-  val originalImageId = varchar("originalImageId", 1000)
-  val duplicateImageId = varchar("duplicateImageId", 1000)
+  val originalImageId = long("originalImageId")
+  val duplicateImageId = long("duplicateImageId")
   
   val level = long("level")
 }
@@ -36,8 +36,8 @@ class DuplicateInfoConnector(private val database: Database) {
   
   fun add(
     group: String,
-    originalImageId: String,
-    duplicateImageId: String,
+    originalImageId: Long,
+    duplicateImageId: Long,
     level: Long
   ) = transaction(database) {
     val duplicateRequest = DuplicateInfoTable.select {
@@ -56,7 +56,7 @@ class DuplicateInfoConnector(private val database: Database) {
   }
   
   fun removeById(
-    imageId: String
+    imageId: Long
   ) = transaction(database) {
     DuplicateInfoTable.deleteWhere { (DuplicateInfoTable.originalImageId eq imageId) or (DuplicateInfoTable.duplicateImageId eq imageId) }
   }

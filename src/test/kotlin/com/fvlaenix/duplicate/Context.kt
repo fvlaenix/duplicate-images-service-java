@@ -1,12 +1,14 @@
 package com.fvlaenix.duplicate
 
-import com.fvlaenix.duplicate.database.ImageOldConnector
-import com.fvlaenix.duplicate.database.ImageOldTable
+import com.fvlaenix.duplicate.database.ImageHashConnector
+import com.fvlaenix.duplicate.database.ImageHashTable
+import com.fvlaenix.duplicate.database.ImageTable
 import com.fvlaenix.duplicate.image.ComparingMachine
+import com.fvlaenix.duplicate.image.ComparingPictures
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.transactions.transaction
-import java.util.Properties
+import java.util.*
 
 object Context {
   private fun <T> withDatabaseContext(body: (Database) -> T): T {
@@ -25,25 +27,30 @@ object Context {
       throw Exception("While executing body in database context", e)
     }
   }
-  
-  fun <T> withImageContext(body: (ImageOldConnector) -> T): T = withDatabaseContext { database ->
-    val connector = ImageOldConnector(database)
+
+  fun <T> withImageHashContext(body: (ImageHashConnector) -> T) = withDatabaseContext { database ->
+    ComparingPictures.TEST_TOLERANCE = 1
+    ImageHashConnector.TEST_PIXEL_DISTANCE = 1
+    val connector = ImageHashConnector(database)
     return@withDatabaseContext try {
       body(connector)
     } finally {
       transaction(database) {
-        SchemaUtils.drop(ImageOldTable)
+        SchemaUtils.drop(ImageHashTable)
       }
     }
   }
   
   fun <T> withComparingMachine(body: (ComparingMachine) -> T): T = withDatabaseContext { database ->
+    ComparingPictures.TEST_TOLERANCE = 1
+    ImageHashConnector.TEST_PIXEL_DISTANCE = 1
     val comparingMachine = ComparingMachine(database)
     return@withDatabaseContext try {
       body(comparingMachine)
     } finally {
       transaction(database) {
-        SchemaUtils.drop(ImageOldTable)
+        SchemaUtils.drop(ImageTable)
+        SchemaUtils.drop(ImageHashTable)
       }
     }
   }

@@ -83,7 +83,6 @@ jobs:
 
 
   qemu-env:
-    if: ${{false}}
     needs: build-and-check
     runs-on: ubuntu-latest
     steps:
@@ -96,6 +95,16 @@ jobs:
     needs: qemu-env
     
     steps:
+      - name: Download jar
+        uses: actions/download-artifact@v4
+        with:
+          name: jar
+          path: .
+      - name: Download Dockerfile
+        uses: actions/download-artifact@v4
+        with:
+          name: dockerfile
+          path: .
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
@@ -112,12 +121,10 @@ jobs:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: ${{ secrets.AWS_ECR_REPOSITORY }} # example: hello.world
 
-          SERVER_FILE: dockerfiles/server/Dockerfile
-
           PLATFORM_AMD64: linux/amd64
           IMAGE_TAG_SERVER_AMD64: latest-server-amd64
         run: |
-          docker buildx build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG_SERVER_AMD64 . --file $SERVER_FILE --platform $PLATFORM_AMD64
+          docker buildx build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG_SERVER_AMD64 . --file Dockerfile --platform $PLATFORM_AMD64
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG_SERVER_AMD64
   
   
@@ -126,6 +133,16 @@ jobs:
     needs: qemu-env
 
     steps:
+      - name: Download jar
+        uses: actions/download-artifact@v4
+        with:
+          name: jar
+          path: .
+      - name: Download Dockerfile
+        uses: actions/download-artifact@v4
+        with:
+          name: dockerfile
+          path: .
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
@@ -142,10 +159,8 @@ jobs:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: ${{ secrets.AWS_ECR_REPOSITORY }} # example: hello.world
 
-          SERVER_FILE: dockerfiles/server/Dockerfile
-
           PLATFORM_ARM64: linux/arm64/v8
           IMAGE_TAG_SERVER_ARM64: latest-server-arm64
         run: |
-          docker buildx build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG_SERVER_ARM64 . --file $SERVER_FILE --platform $PLATFORM_ARM64
+          docker buildx build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG_SERVER_ARM64 . --file Dockerfile --platform $PLATFORM_ARM64
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG_SERVER_ARM64

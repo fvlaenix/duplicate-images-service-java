@@ -10,7 +10,7 @@ import kotlin.random.Random
 object ComparingPictures {
   private const val REAL_TOLERANCE = 17000 // 1292
   var TEST_TOLERANCE: Int? = null
-  val TOLERANCE_PER_POINT
+  private val TOLERANCE_PER_POINT
     get() = TEST_TOLERANCE ?: REAL_TOLERANCE
 
   private const val COUNT_RANDOM_POINTS = 10

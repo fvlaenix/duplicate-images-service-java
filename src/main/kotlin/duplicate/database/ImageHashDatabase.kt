@@ -6,8 +6,9 @@ import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.awt.image.BufferedImage
 
-const val MAX_HEIGHT = 8
-const val MAX_WIDTH = 8
+private const val MAX_HEIGHT = 8
+private const val MAX_WIDTH = 8
+
 
 object ImageHashTable : Table() {
   val id = long("id").primaryKey()
@@ -23,7 +24,7 @@ object ImageHashTable : Table() {
   }
 
   init {
-    // index("similarIndex", false, group, timestamp, height, width, *(hashes.flatten().toTypedArray()))
+    index("similarIndex", false, group, timestamp, height, width, *(hashes.flatten().toTypedArray()))
   }
 }
 
@@ -102,7 +103,7 @@ class ImageHashConnector(private val database: Database) {
   }
 
   fun addImageWithCheck(id: Long, group: String, timestamp: Long, image: BufferedImage): ReturnResultAddAndCheck {
-    val hashImage = Thumbnails.of(image).forceSize(MAX_WIDTH, MAX_HEIGHT).asBufferedImage()
+    val hashImage = Thumbnails.of(image).height(MAX_HEIGHT).width(MAX_WIDTH).asBufferedImage()
     val imageHash = (0 until MAX_WIDTH).map { width ->
       (0 until MAX_HEIGHT).map { height ->
         hashImage.getRGB(width, height).getGray()
@@ -131,3 +132,24 @@ class ImageHashConnector(private val database: Database) {
     ImageHashTable.deleteWhere { ImageHashTable.id eq id } > 0
   }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

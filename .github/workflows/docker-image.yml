@@ -7,9 +7,7 @@ on:
 jobs:
 
   build-and-check:
-
     runs-on: ubuntu-latest
-
     steps:
     - name: Check out code
       uses: actions/checkout@v3
@@ -34,11 +32,34 @@ jobs:
     - name: Test and build JAR
       run: |
         ./gradlew build check jar --console=plain --no-daemon
-        
+    - name: Upload JAR
+      uses: actions/upload-artifact@v4
+      with:
+        name: jar
+        path: build/libs/runServer.jar
+        retention-days: 1
+    - name: Upload Dockerfile
+      uses: actions/upload-artifact@v4
+      with:
+        name: dockerfile
+        path: dockerfiles/copy-jar/Dockerfile
+        retention-days: 1
+  
+  
   build-and-push-classic:
     runs-on: ubuntu-latest
     needs: build-and-check
     steps:
+      - name: Download jar
+        uses: actions/download-artifact@v4
+        with:
+          name: jar
+          path: runServer.jar
+      - name: Download Dockerfile
+        uses: actions/download-artifact@v4
+        with:
+          name: dockerfile
+          path: Dockerfile
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
@@ -55,13 +76,12 @@ jobs:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: ${{ secrets.AWS_ECR_REPOSITORY }} # example: hello.world
 
-          SERVER_FILE: dockerfiles/copy-jar/Dockerfile
-
           IMAGE_TAG: latest
         run: |
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:IMAGE_TAG . --file $SERVER_FILE
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:IMAGE_TAG . --file Dockerfile
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:IMAGE_TAG
-  
+
+
   qemu-env:
     if: ${{false}}
     needs: build-and-check
@@ -69,6 +89,7 @@ jobs:
     steps:
       - name: Setup QEMU
         uses: docker/setup-qemu-action@v3
+  
   
   build-and-push-amd64:
     runs-on: ubuntu-latest
@@ -98,6 +119,7 @@ jobs:
         run: |
           docker buildx build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG_SERVER_AMD64 . --file $SERVER_FILE --platform $PLATFORM_AMD64
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG_SERVER_AMD64
+  
   
   build-and-push-arm64:
     runs-on: ubuntu-latest

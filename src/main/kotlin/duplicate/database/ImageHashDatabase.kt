@@ -1,6 +1,7 @@
 package com.fvlaenix.duplicate.database
 
 import com.fvlaenix.duplicate.utils.ImageUtils.getGray
+import com.fvlaenix.duplicate.utils.IndicesUtils
 import net.coobird.thumbnailator.Thumbnails
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -9,6 +10,7 @@ import java.awt.image.BufferedImage
 private const val MAX_HEIGHT = 8
 private const val MAX_WIDTH = 8
 
+const val MAX_COUNT_INDICES = 8
 
 object ImageHashTable : Table() {
   val id = long("id").primaryKey()
@@ -17,14 +19,29 @@ object ImageHashTable : Table() {
   val height = integer("height")
   val width = integer("width")
 
+  data class HashInfo(val hashColumn: Column<Int>, val height: Int, val width: Int)
+  
   val hashes = (0 until MAX_WIDTH).map { width ->
     (0 until MAX_HEIGHT).map { height ->
-      integer("pixel_${height}_${width}")
+      HashInfo(integer("pixel_${height}_${width}"), height, width)
     }
   }
 
+  val columnGroups = IndicesUtils.getIndices()
+    .map { it.translateList(hashes) }
+  
   init {
-    index("similarIndex", false, group, timestamp, height, width, *(hashes.flatten().toTypedArray()))
+    columnGroups.forEachIndexed { index, columnGroup ->
+      index(
+        "similarIndex-$index",
+        false,
+        group,
+        timestamp,
+        height,
+        width,
+        *(columnGroup.map { it.hashColumn }.toTypedArray())
+      )
+    }
   }
 }
 
@@ -51,25 +68,29 @@ class ImageHashConnector(private val database: Database) {
     imageHash: List<List<Int>>,
     pixelDistance: Int = REAL_PIXEL_DISTANCE
   ): List<Long> {
-    return ImageHashTable.select {
-      (ImageHashTable.height eq image.height)
-        .and(ImageHashTable.width eq image.width)
-        .and(ImageHashTable.group eq group)
-        .and(ImageHashTable.timestamp less timestamp)
-        .let {
-          var accumulator = it
-          (0 until MAX_WIDTH).map { width ->
-            (0 until MAX_HEIGHT).map { height ->
-              val column = ImageHashTable.hashes[width][height]
-              val hash = imageHash[width][height]
+    val results = ImageHashTable.columnGroups.map { columnGroup ->
+      ImageHashTable.select {
+        (ImageHashTable.height eq image.height)
+          .and(ImageHashTable.width eq image.width)
+          .and(ImageHashTable.group eq group)
+          .and(ImageHashTable.timestamp less timestamp)
+          .let {
+            var accumulator = it
+
+            columnGroup.forEach { columnInfo ->
+              val hash = imageHash[columnInfo.width][columnInfo.height]
               accumulator = accumulator.and(
-                (column less hash + pixelDistance) and (column greater hash - pixelDistance)
+                (columnInfo.hashColumn less hash + pixelDistance) and (columnInfo.hashColumn greater hash - pixelDistance)
               )
             }
+
+            accumulator
           }
-          accumulator
-        }
-    }.map { it[ImageHashTable.id] }
+      }.map { it[ImageHashTable.id] }
+    }
+    var result = results[0].toSet()
+    (1 until results.size).forEach { result = result.intersect(results[it].toSet()) }
+    return result.toList()
   }
 
   private fun Transaction.isExists(id: Long): Boolean =
@@ -95,7 +116,7 @@ class ImageHashConnector(private val database: Database) {
           (0 until MAX_HEIGHT).map { height ->
             val column = hashes[width][height]
             val hash = imageHash[width][height]
-            it[column] = hash
+            it[column.hashColumn] = hash
           }
         }
       }
@@ -110,7 +131,7 @@ class ImageHashConnector(private val database: Database) {
     image: BufferedImage,
     pixelDistance: Int = REAL_PIXEL_DISTANCE
   ): ReturnResultAddAndCheck {
-    val hashImage = Thumbnails.of(image).height(MAX_HEIGHT).width(MAX_WIDTH).asBufferedImage()
+    val hashImage = Thumbnails.of(image).forceSize(MAX_WIDTH, MAX_HEIGHT).asBufferedImage()
     val imageHash = (0 until MAX_WIDTH).map { width ->
       (0 until MAX_HEIGHT).map { height ->
         hashImage.getRGB(width, height).getGray()
@@ -144,24 +165,3 @@ class ImageHashConnector(private val database: Database) {
     ImageHashTable.deleteWhere { ImageHashTable.id eq id } > 0
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

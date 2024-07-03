@@ -1,6 +1,7 @@
 package com.fvlaenix.duplicate.database
 
 import com.fvlaenix.duplicate.utils.ImageUtils
+import com.fvlaenix.duplicate.utils.LongBlobUtils.longBlob
 import org.jetbrains.exposed.dao.LongIdTable
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -10,6 +11,8 @@ import java.util.logging.Logger
 import javax.sql.rowset.serial.SerialBlob
 import kotlin.io.path.Path
 import kotlin.io.path.extension
+
+private const val IS_LONG_BLOB: Boolean = true
 
 data class Image(
   val id: Long,
@@ -27,7 +30,7 @@ object ImageTable : LongIdTable() {
   val numberInMessage = integer("numberInMessage")
   val additionalInfo = varchar("additionalInfo", 400)
   val fileName = varchar("fileName", 255)
-  val image = blob("image")
+  val image = if (IS_LONG_BLOB) longBlob("image") else blob("image")
 
   init {
     index(true, messageId, numberInMessage)

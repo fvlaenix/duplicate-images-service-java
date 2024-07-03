@@ -7,9 +7,8 @@ import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.awt.image.BufferedImage
 
-private const val MAX_HEIGHT = 8
-private const val MAX_WIDTH = 8
-
+const val MAX_HEIGHT = 8
+const val MAX_WIDTH = 8
 const val MAX_COUNT_INDICES = 8
 
 object ImageHashTable : Table() {

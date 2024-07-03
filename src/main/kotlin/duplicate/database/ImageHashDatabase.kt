@@ -48,7 +48,8 @@ class ImageHashConnector(private val database: Database) {
     group: String,
     timestamp: Long,
     image: BufferedImage,
-    imageHash: List<List<Int>>
+    imageHash: List<List<Int>>,
+    pixelDistance: Int = REAL_PIXEL_DISTANCE
   ): List<Long> {
     return ImageHashTable.select {
       (ImageHashTable.height eq image.height)
@@ -62,7 +63,7 @@ class ImageHashConnector(private val database: Database) {
               val column = ImageHashTable.hashes[width][height]
               val hash = imageHash[width][height]
               accumulator = accumulator.and(
-                (column less hash + REAL_PIXEL_DISTANCE) and (column greater hash - REAL_PIXEL_DISTANCE)
+                (column less hash + pixelDistance) and (column greater hash - pixelDistance)
               )
             }
           }
@@ -102,7 +103,13 @@ class ImageHashConnector(private val database: Database) {
     }
   }
 
-  fun addImageWithCheck(id: Long, group: String, timestamp: Long, image: BufferedImage): ReturnResultAddAndCheck {
+  fun addImageWithCheck(
+    id: Long,
+    group: String,
+    timestamp: Long,
+    image: BufferedImage,
+    pixelDistance: Int = REAL_PIXEL_DISTANCE
+  ): ReturnResultAddAndCheck {
     val hashImage = Thumbnails.of(image).height(MAX_HEIGHT).width(MAX_WIDTH).asBufferedImage()
     val imageHash = (0 until MAX_WIDTH).map { width ->
       (0 until MAX_HEIGHT).map { height ->
@@ -110,13 +117,18 @@ class ImageHashConnector(private val database: Database) {
       }
     }
     return transaction(database) {
-      val ids = selectSimilarImage(group, timestamp, image, imageHash)
+      val ids = selectSimilarImage(group, timestamp, image, imageHash, pixelDistance)
       val isAdded = addIfNotExists(id, group, timestamp, image, imageHash)
       return@transaction ReturnResultAddAndCheck(ids, isAdded)
     }
   }
 
-  fun imageCheck(group: String, timestamp: Long, image: BufferedImage): List<Long> {
+  fun imageCheck(
+    group: String,
+    timestamp: Long,
+    image: BufferedImage,
+    pixelDistance: Int = REAL_PIXEL_DISTANCE
+  ): List<Long> {
     val hashImage = Thumbnails.of(image).height(MAX_HEIGHT).width(MAX_WIDTH).asBufferedImage()
     val imageHash = (0 until MAX_WIDTH).map { width ->
       (0 until MAX_HEIGHT).map { height ->
@@ -124,7 +136,7 @@ class ImageHashConnector(private val database: Database) {
       }
     }
     return transaction(database) {
-      selectSimilarImage(group, timestamp, image, imageHash)
+      selectSimilarImage(group, timestamp, image, imageHash, pixelDistance)
     }
   }
 

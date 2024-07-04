@@ -11,6 +11,15 @@ const val MAX_HEIGHT = 8
 const val MAX_WIDTH = 8
 const val MAX_COUNT_INDICES = 8
 
+data class ImageHash(
+  val id: Long,
+  val group: String,
+  val timestamp: Long,
+  val height: Int,
+  val width: Int,
+  val hash: List<List<Int>>
+)
+
 object ImageHashTable : Table() {
   val id = long("id").primaryKey()
   val group = varchar("group", 40)
@@ -162,5 +171,20 @@ class ImageHashConnector(private val database: Database) {
 
   fun deleteById(id: Long): Boolean = transaction(database) {
     ImageHashTable.deleteWhere { ImageHashTable.id eq id } > 0
+  }
+
+  fun get(resultRow: ResultRow): ImageHash = ImageHash(
+    id = resultRow[ImageHashTable.id],
+    group = resultRow[ImageHashTable.group],
+    timestamp = resultRow[ImageHashTable.timestamp],
+    height = resultRow[ImageHashTable.height],
+    width = resultRow[ImageHashTable.width],
+    hash = ImageHashTable.columnGroups.map { columns ->
+      columns.map { resultRow[it.hashColumn] }
+    }
+  )
+
+  fun getById(id: Long): ImageHash? = transaction(database) {
+    ImageHashTable.select { ImageHashTable.id eq id }.map { get(it) }.singleOrNull()
   }
 }

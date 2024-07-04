@@ -49,6 +49,7 @@ class ImageConnector(private val database: Database) {
   fun <T> withConnect(body: Transaction.() -> T): T = transaction(database, body)
 
   private fun Transaction.getIdConnected(messageId: String, numberInMessage: Int) = ImageTable
+    .slice(ImageTable.id, ImageTable.messageId, ImageTable.numberInMessage)
     .select { (ImageTable.messageId eq messageId) and (ImageTable.numberInMessage eq numberInMessage) }
     .map { it[ImageTable.id].value }.singleOrNull()
 

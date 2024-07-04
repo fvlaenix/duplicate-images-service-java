@@ -84,9 +84,9 @@ fun measure() {
   val semaphore = Semaphore(16)
   runBlocking {
     oldDuplicates.forEachIndexed { index, duplicateInfo ->
-      if (index % 10 == 0) LOGGER.log(Level.INFO, "Starting measure [$index/${oldDuplicates.size}]")
       semaphore.withPermit {
         launch(coroutineContextPool) {
+          if (index % 10 == 0) LOGGER.log(Level.INFO, "Starting measure [$index/${oldDuplicates.size}]")
           val originalImageId =
             imageConnector.getId(duplicateInfo.originalMessageId, duplicateInfo.originalNumberInMessage)
           val duplicateImageId =

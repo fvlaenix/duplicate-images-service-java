@@ -69,17 +69,18 @@ class ImageHashConnector(private val database: Database) {
 
   data class ReturnResultAddAndCheck(val similarIds: List<Long>, val isAdded: Boolean)
 
-  private fun Transaction.selectSimilarImage(
+  private fun Transaction.selectSimilarImageConnected(
     group: String,
     timestamp: Long,
-    image: BufferedImage,
+    height: Int,
+    width: Int,
     imageHash: List<List<Int>>,
     pixelDistance: Int = REAL_PIXEL_DISTANCE
   ): List<Long> {
     val results = ImageHashTable.columnGroups.map { columnGroup ->
       ImageHashTable.select {
-        (ImageHashTable.height eq image.height)
-          .and(ImageHashTable.width eq image.width)
+        (ImageHashTable.height eq height)
+          .and(ImageHashTable.width eq width)
           .and(ImageHashTable.group eq group)
           .and(ImageHashTable.timestamp less timestamp)
           .let {
@@ -99,6 +100,17 @@ class ImageHashConnector(private val database: Database) {
     var result = results[0].toSet()
     (1 until results.size).forEach { result = result.intersect(results[it].toSet()) }
     return result.toList()
+  }
+
+  fun selectSimilarImages(
+    group: String,
+    timestamp: Long,
+    height: Int,
+    width: Int,
+    imageHash: List<List<Int>>,
+    pixelDistance: Int = REAL_PIXEL_DISTANCE
+  ): List<Long> = transaction(database) {
+    selectSimilarImageConnected(group, timestamp, height, width, imageHash, pixelDistance)
   }
 
   private fun Transaction.isExists(id: Long): Boolean =
@@ -146,7 +158,7 @@ class ImageHashConnector(private val database: Database) {
       }
     }
     return transaction(database) {
-      val ids = selectSimilarImage(group, timestamp, image, imageHash, pixelDistance)
+      val ids = selectSimilarImageConnected(group, timestamp, image.height, image.width, imageHash, pixelDistance)
       val isAdded = addIfNotExists(id, group, timestamp, image, imageHash)
       return@transaction ReturnResultAddAndCheck(ids, isAdded)
     }
@@ -165,7 +177,7 @@ class ImageHashConnector(private val database: Database) {
       }
     }
     return transaction(database) {
-      selectSimilarImage(group, timestamp, image, imageHash, pixelDistance)
+      selectSimilarImageConnected(group, timestamp, image.height, image.width, imageHash, pixelDistance)
     }
   }
 

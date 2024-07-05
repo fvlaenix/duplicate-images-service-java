@@ -82,7 +82,10 @@ class ImageConnector(private val database: Database) {
 
   fun findByIdWithoutImage(id: Long): ImageInfo? = withConnect {
     ImageTable
-      .slice(ImageTable.id, ImageTable.group, ImageTable.messageId, ImageTable.numberInMessage, ImageTable.fileName)
+      .slice(
+        ImageTable.id, ImageTable.group, ImageTable.messageId,
+        ImageTable.numberInMessage, ImageTable.additionalInfo, ImageTable.fileName
+      )
       .select { ImageTable.id eq id }
       .map { getWithoutImage(it) }.singleOrNull()
   }

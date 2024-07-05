@@ -16,7 +16,7 @@ fun main() {
   } catch (e: Exception) {
     throw IllegalStateException("Failed while trying to read logs", e)
   }
-  measure()
+  mistakeCounter()
   return
   val runServerLog = Logger.getLogger(RunServer::class.java.name)
   val connection = Connector.connection

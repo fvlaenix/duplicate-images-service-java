@@ -63,7 +63,7 @@ fun mistakeCounter() {
   val imageHashConnector = ImageHashConnector(connection)
   val mistakeCounterConnector = ResultOfMistakeCounterConnector(connection)
 
-  val imageIds = imageConnector.getAllIds()
+  val imageIds = imageConnector.getAllIds().shuffled()
 
   val semaphore = Semaphore(16)
 

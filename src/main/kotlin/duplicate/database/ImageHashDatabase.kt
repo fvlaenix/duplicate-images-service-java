@@ -151,12 +151,7 @@ class ImageHashConnector(private val database: Database) {
     image: BufferedImage,
     pixelDistance: Int = REAL_PIXEL_DISTANCE
   ): ReturnResultAddAndCheck {
-    val hashImage = Thumbnails.of(image).forceSize(MAX_WIDTH, MAX_HEIGHT).asBufferedImage()
-    val imageHash = (0 until MAX_WIDTH).map { width ->
-      (0 until MAX_HEIGHT).map { height ->
-        hashImage.getRGB(width, height).getGray()
-      }
-    }
+    val imageHash = image.getHash()
     return transaction(database) {
       val ids = selectSimilarImageConnected(group, timestamp, image.height, image.width, imageHash, pixelDistance)
       val isAdded = addIfNotExists(id, group, timestamp, image, imageHash)
@@ -199,4 +194,14 @@ class ImageHashConnector(private val database: Database) {
   fun getById(id: Long): ImageHash? = transaction(database) {
     ImageHashTable.select { ImageHashTable.id eq id }.map { get(it) }.singleOrNull()
   }
+}
+
+fun BufferedImage.getHash(): List<List<Int>> {
+  val hashImage = Thumbnails.of(this).forceSize(MAX_WIDTH, MAX_HEIGHT).asBufferedImage()
+  val imageHash = (0 until MAX_WIDTH).map { width ->
+    (0 until MAX_HEIGHT).map { height ->
+      hashImage.getRGB(width, height).getGray()
+    }
+  }
+  return imageHash
 }

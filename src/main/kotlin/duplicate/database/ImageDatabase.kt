@@ -24,6 +24,15 @@ data class Image(
   val image: BufferedImage
 )
 
+data class ImageInfo(
+  val id: Long,
+  val group: String,
+  val messageId: String,
+  val numberInMessage: Int,
+  val additionalInfo: String,
+  val fileName: String
+)
+
 object ImageTable : LongIdTable() {
   val group = varchar("group", 64)
   val messageId = varchar("messageId", 64)
@@ -71,6 +80,13 @@ class ImageConnector(private val database: Database) {
       .map { get(it) }.singleOrNull()
   }
 
+  fun findByIdWithoutImage(id: Long): ImageInfo? = withConnect {
+    ImageTable
+      .slice(ImageTable.id, ImageTable.group, ImageTable.messageId, ImageTable.numberInMessage, ImageTable.fileName)
+      .select { ImageTable.id eq id }
+      .map { getWithoutImage(it) }.singleOrNull()
+  }
+
   private fun Transaction.existsConnected(messageId: String, numberInMessage: Int) =
     getIdConnected(messageId, numberInMessage) != null
 
@@ -99,7 +115,22 @@ class ImageConnector(private val database: Database) {
     }
   }
 
+  fun getAllIds(): List<Long> = transaction(database) {
+    ImageTable.slice(ImageTable.id).selectAll().map { it[ImageTable.id].value }
+  }
+  
   companion object {
+    fun getWithoutImage(resultRow: ResultRow): ImageInfo {
+      return ImageInfo(
+        resultRow[ImageTable.id].value,
+        resultRow[ImageTable.group],
+        resultRow[ImageTable.messageId],
+        resultRow[ImageTable.numberInMessage],
+        resultRow[ImageTable.additionalInfo],
+        resultRow[ImageTable.fileName]
+      )
+    }
+    
     fun get(resultRow: ResultRow): Image {
       val image = ImageUtils.getImageFromBlob(SerialBlob(resultRow[ImageTable.image]))
       if (image == null) {

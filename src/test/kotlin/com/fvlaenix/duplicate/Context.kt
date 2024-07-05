@@ -30,7 +30,7 @@ object Context {
 
   fun <T> withImageHashContext(body: (ImageHashConnector) -> T) = withDatabaseContext { database ->
     ComparingPictures.TEST_TOLERANCE = 1
-    ImageHashConnector.TEST_PIXEL_DISTANCE = 1
+    ImageHashConnector.TEST_PIXEL_DISTANCE = 0
     val connector = ImageHashConnector(database)
     return@withDatabaseContext try {
       body(connector)
@@ -43,7 +43,7 @@ object Context {
   
   fun <T> withComparingMachine(body: (ComparingMachine) -> T): T = withDatabaseContext { database ->
     ComparingPictures.TEST_TOLERANCE = 1
-    ImageHashConnector.TEST_PIXEL_DISTANCE = 1
+    ImageHashConnector.TEST_PIXEL_DISTANCE = 0
     val comparingMachine = ComparingMachine(database)
     return@withDatabaseContext try {
       body(comparingMachine)

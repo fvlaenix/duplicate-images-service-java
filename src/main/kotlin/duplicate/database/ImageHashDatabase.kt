@@ -89,7 +89,7 @@ class ImageHashConnector(private val database: Database) {
             columnGroup.forEach { columnInfo ->
               val hash = imageHash[columnInfo.width][columnInfo.height]
               accumulator = accumulator.and(
-                (columnInfo.hashColumn less hash + pixelDistance) and (columnInfo.hashColumn greater hash - pixelDistance)
+                (columnInfo.hashColumn lessEq hash + pixelDistance) and (columnInfo.hashColumn greaterEq hash - pixelDistance)
               )
             }
 

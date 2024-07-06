@@ -6,6 +6,7 @@ import net.coobird.thumbnailator.Thumbnails
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.awt.image.BufferedImage
+import kotlin.math.abs
 
 const val MAX_HEIGHT = 8
 const val MAX_WIDTH = 8
@@ -77,8 +78,8 @@ class ImageHashConnector(private val database: Database) {
     imageHash: List<List<Int>>,
     pixelDistance: Int = REAL_PIXEL_DISTANCE
   ): List<Long> {
-    val results = ImageHashTable.columnGroups.map { columnGroup ->
-      ImageHashTable.select {
+    fun getRequest(columnGroup: List<ImageHashTable.HashInfo>): List<Long> {
+      return ImageHashTable.select {
         (ImageHashTable.height eq height)
           .and(ImageHashTable.width eq width)
           .and(ImageHashTable.group eq group)
@@ -97,6 +98,32 @@ class ImageHashConnector(private val database: Database) {
           }
       }.map { it[ImageHashTable.id] }
     }
+
+    var currentIds = getRequest(ImageHashTable.columnGroups[0]).toSet()
+    (1 until ImageHashTable.columnGroups.size).forEach { columnGroupIndex ->
+      if (currentIds.isEmpty()) return emptyList()
+      if (currentIds.size < 10) {
+        val imageInfos = currentIds.mapNotNull { getById(it) }
+        return imageInfos.filter { imageInfo ->
+          if (imageInfo.group != group) return@filter false
+          if (imageInfo.height != height) return@filter false
+          if (imageInfo.width != width) return@filter false
+          if (imageInfo.timestamp > timestamp) return@filter false
+          (0 until MAX_WIDTH).forEach { width ->
+            (0 until MAX_HEIGHT).forEach { height ->
+              val hash = imageHash[width][height]
+              val imageInfoHash = imageInfo.hash[width][height]
+              if (abs(hash - imageInfoHash) > pixelDistance) return@filter false
+            }
+          }
+          return@filter true
+        }.map { it.id }
+      }
+      val columnGroup = ImageHashTable.columnGroups[columnGroupIndex]
+      currentIds = currentIds.intersect(getRequest(columnGroup).toSet())
+    }
+
+    val results = ImageHashTable.columnGroups.map(::getRequest)
     var result = results[0].toSet()
     (1 until results.size).forEach { result = result.intersect(results[it].toSet()) }
     return result.toList()

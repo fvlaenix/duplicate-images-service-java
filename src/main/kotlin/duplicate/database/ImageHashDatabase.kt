@@ -1,12 +1,12 @@
 package com.fvlaenix.duplicate.database
 
+import com.fvlaenix.duplicate.utils.HashUtils
 import com.fvlaenix.duplicate.utils.ImageUtils.getGray
 import com.fvlaenix.duplicate.utils.IndicesUtils
 import net.coobird.thumbnailator.Thumbnails
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.awt.image.BufferedImage
-import kotlin.math.abs
 
 const val MAX_HEIGHT = 8
 const val MAX_WIDTH = 8
@@ -109,13 +109,7 @@ class ImageHashConnector(private val database: Database) {
           if (imageInfo.height != height) return@filter false
           if (imageInfo.width != width) return@filter false
           if (imageInfo.timestamp > timestamp) return@filter false
-          (0 until MAX_WIDTH).forEach { width ->
-            (0 until MAX_HEIGHT).forEach { height ->
-              val hash = imageHash[width][height]
-              val imageInfoHash = imageInfo.hash[width][height]
-              if (abs(hash - imageInfoHash) > pixelDistance) return@filter false
-            }
-          }
+          if (HashUtils.distance(imageHash, imageInfo.hash) > pixelDistance) return@filter false
           return@filter true
         }.map { it.id }
       }

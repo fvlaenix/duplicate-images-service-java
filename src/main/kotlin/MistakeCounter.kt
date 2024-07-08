@@ -3,6 +3,7 @@ package com.fvlaenix
 import com.fvlaenix.duplicate.database.Connector
 import com.fvlaenix.duplicate.database.ImageConnector
 import com.fvlaenix.duplicate.database.ImageHashConnector
+import com.fvlaenix.duplicate.utils.HashUtils
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.newFixedThreadPoolContext
 import kotlinx.coroutines.runBlocking
@@ -85,16 +86,25 @@ fun mistakeCounter() {
           }
 
           val counters = mutableListOf<Int>()
-          for (pixelDistance in (0..MAX_COUNTER)) {
-            val similarImages = imageHashConnector.selectSimilarImages(
-              group = imageInfo.group,
-              timestamp = imageHash.timestamp,
-              height = imageHash.height,
-              width = imageHash.width,
-              imageHash = imageHash.hash,
-              pixelDistance = pixelDistance
-            )
-            counters.add(similarImages.size)
+
+          val similarImages = imageHashConnector.selectSimilarImages(
+            group = imageInfo.group,
+            timestamp = imageHash.timestamp,
+            height = imageHash.height,
+            width = imageHash.width,
+            imageHash = imageHash.hash,
+            pixelDistance = MAX_COUNTER
+          )
+
+          val similarImagesWithLevel = similarImages
+            .map { imageHashConnector.getById(id)!! }
+            .groupBy { HashUtils.distance(imageHash.hash, it.hash) }
+            .mapValues { it.value.size }
+
+          var accumulator = 0
+          (0..MAX_COUNTER).forEach { counter ->
+            accumulator += similarImagesWithLevel[counter] ?: 0
+            counters.add(accumulator)
           }
 
           mistakeCounterConnector.add(

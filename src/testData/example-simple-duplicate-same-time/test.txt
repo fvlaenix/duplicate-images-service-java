@@ -1,0 +1,3 @@
+same image in same time
+add-with-check 0.png 0
+add-with-check 1.png 0

@@ -1,0 +1,4 @@
+same image
+add-with-check 0.png 0
+increase-time
+add-with-check 1.png 1

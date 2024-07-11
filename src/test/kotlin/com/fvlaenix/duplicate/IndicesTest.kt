@@ -1,8 +1,8 @@
 package com.fvlaenix.duplicate
 
 import com.fvlaenix.duplicate.utils.IndicesUtils
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import kotlin.test.assertTrue
 
 class IndicesTest {
   @Test
@@ -24,11 +24,7 @@ class IndicesTest {
     indicies.forEachIndexed { index, indices ->
       val captured = indices.translateList(table)
       captured.forEach {
-        assertTrue("While trying get indecies by number $index. Got $captured") {
-          prototype[index].contains(
-            it % 16
-          )
-        }
+        assertTrue(prototype[index].contains(it % 16), "While trying get indecies by number $index. Got $captured")
       }
     }
   }

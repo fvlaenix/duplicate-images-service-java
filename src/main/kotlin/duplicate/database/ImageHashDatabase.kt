@@ -108,7 +108,7 @@ class ImageHashConnector(private val database: Database) {
           if (imageInfo.group != group) return@filter false
           if (imageInfo.height != height) return@filter false
           if (imageInfo.width != width) return@filter false
-          if (imageInfo.timestamp > timestamp) return@filter false
+          if (imageInfo.timestamp >= timestamp) return@filter false
           if (HashUtils.distance(imageHash, imageInfo.hash) > pixelDistance) return@filter false
           return@filter true
         }.map { it.id }
@@ -117,10 +117,7 @@ class ImageHashConnector(private val database: Database) {
       currentIds = currentIds.intersect(getRequest(columnGroup).toSet())
     }
 
-    val results = ImageHashTable.columnGroups.map(::getRequest)
-    var result = results[0].toSet()
-    (1 until results.size).forEach { result = result.intersect(results[it].toSet()) }
-    return result.toList()
+    return currentIds.toList()
   }
 
   fun selectSimilarImages(
@@ -207,8 +204,10 @@ class ImageHashConnector(private val database: Database) {
     timestamp = resultRow[ImageHashTable.timestamp],
     height = resultRow[ImageHashTable.height],
     width = resultRow[ImageHashTable.width],
-    hash = ImageHashTable.columnGroups.map { columns ->
-      columns.map { resultRow[it.hashColumn] }
+    hash = (0 until MAX_WIDTH).map { width ->
+      (0 until MAX_HEIGHT).map { height ->
+        resultRow[ImageHashTable.hashes[width][height].hashColumn]
+      }
     }
   )
 

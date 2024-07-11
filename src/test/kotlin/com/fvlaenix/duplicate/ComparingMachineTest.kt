@@ -7,12 +7,12 @@ import com.fvlaenix.image.protobuf.Image
 import com.fvlaenix.image.protobuf.image
 import com.google.protobuf.kotlin.toByteString
 import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.awt.Color
 import java.awt.image.BufferedImage
 import kotlin.random.Random
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 class ComparingMachineTest {
 
@@ -244,7 +244,7 @@ class ComparingMachineTest {
       this.image = toImage("a.png", firstImage)
       this.timestamp = 0
     })
-    assertEquals(firstImageSearch.imageInfo.imagesList.map { it.messageId }, listOf())
+    assertEquals(firstImageSearch.imageInfo.imagesList.map { it.messageId }, listOf<String>())
   }
 
   @Test

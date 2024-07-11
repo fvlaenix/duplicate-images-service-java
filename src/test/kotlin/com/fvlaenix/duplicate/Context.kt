@@ -40,10 +40,11 @@ object Context {
       }
     }
   }
-  
-  fun <T> withComparingMachine(body: (ComparingMachine) -> T): T = withDatabaseContext { database ->
-    ComparingPictures.TEST_TOLERANCE = 1
-    ImageHashConnector.TEST_PIXEL_DISTANCE = 0
+
+  fun <T> withComparingMachine(pictureTolerance: Int = 1, pixelTolerance: Int = 0, body: (ComparingMachine) -> T): T =
+    withDatabaseContext { database ->
+      ComparingPictures.TEST_TOLERANCE = pictureTolerance
+      ImageHashConnector.TEST_PIXEL_DISTANCE = pixelTolerance
     val comparingMachine = ComparingMachine(database)
     return@withDatabaseContext try {
       body(comparingMachine)

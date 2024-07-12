@@ -12,13 +12,13 @@ import kotlin.io.path.readLines
 import kotlin.test.assertEquals
 
 class AdditionalTestCaseSuites {
-  private class AdditionalTestCase(val directory: Path) {
+  private class AdditionalTestCase(val directory: Path, val testPath: Path) {
 
     val name: String
     val test: List<String>
 
     init {
-      val testFile = directory.resolve("test.txt").readLines()
+      val testFile = testPath.readLines()
       name = testFile.first()
       test = testFile.drop(1)
     }
@@ -73,7 +73,11 @@ class AdditionalTestCaseSuites {
     val path = Path.of("src").resolve("testData")
     return path.toFile().listFiles()!!
       .filter { it.isDirectory }
-      .map { AdditionalTestCase(it.toPath()) }
+      .flatMap { directory ->
+        directory.listFiles()!!
+          .filter { it.isFile && it.extension == "txt" }
+          .map { AdditionalTestCase(directory.toPath(), it.toPath()) }
+      }
       .map { it.get() }
   }
 }

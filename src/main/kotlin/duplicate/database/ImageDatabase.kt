@@ -125,12 +125,12 @@ class ImageConnector(private val database: Database) {
   companion object {
     fun getWithoutImage(resultRow: ResultRow): ImageInfo {
       return ImageInfo(
-        resultRow[ImageTable.id].value,
-        resultRow[ImageTable.group],
-        resultRow[ImageTable.messageId],
-        resultRow[ImageTable.numberInMessage],
-        resultRow[ImageTable.additionalInfo],
-        resultRow[ImageTable.fileName]
+        id = resultRow[ImageTable.id].value,
+        group = resultRow[ImageTable.group],
+        messageId = resultRow[ImageTable.messageId],
+        numberInMessage = resultRow[ImageTable.numberInMessage],
+        additionalInfo = resultRow[ImageTable.additionalInfo],
+        fileName = resultRow[ImageTable.fileName]
       )
     }
     
@@ -144,13 +144,13 @@ class ImageConnector(private val database: Database) {
         throw ImageReadException(resultRow[ImageTable.id].value)
       }
       return Image(
-        resultRow[ImageTable.id].value,
-        resultRow[ImageTable.group],
-        resultRow[ImageTable.messageId],
-        resultRow[ImageTable.numberInMessage],
-        resultRow[ImageTable.additionalInfo],
-        resultRow[ImageTable.fileName],
-        image
+        id = resultRow[ImageTable.id].value,
+        group = resultRow[ImageTable.group],
+        messageId = resultRow[ImageTable.messageId],
+        numberInMessage = resultRow[ImageTable.numberInMessage],
+        additionalInfo = resultRow[ImageTable.additionalInfo],
+        fileName = resultRow[ImageTable.fileName],
+        image = image
       )
     }
   }

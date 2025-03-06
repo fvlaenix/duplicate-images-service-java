@@ -1,9 +1,9 @@
-package com.fvlaenix.duplicate
+package duplicate
 
 import com.fvlaenix.alive.protobuf.IsAliveRequest
 import com.fvlaenix.alive.protobuf.IsAliveResponse
 import com.fvlaenix.alive.protobuf.isAliveResponse
-import com.fvlaenix.duplicate.image.ComparingMachine
+import duplicate.image.ComparingMachine
 import com.fvlaenix.duplicate.protobuf.*
 import org.jetbrains.exposed.sql.Database
 import java.util.logging.Level

@@ -1,21 +1,10 @@
-package com.fvlaenix.duplicate.utils
+package duplicate.utils
 
-import com.fvlaenix.duplicate.database.MAX_COUNT_INDICES
-import com.fvlaenix.duplicate.database.MAX_HEIGHT
-import com.fvlaenix.duplicate.database.MAX_WIDTH
-import kotlin.math.roundToInt
-import kotlin.math.sqrt
+import duplicate.database.MAX_COUNT_INDICES
+import duplicate.database.MAX_HEIGHT
+import duplicate.database.MAX_WIDTH
 
 object IndicesUtils {
-  private fun nearestDividers(n: Int): Int {
-    var sqrt = sqrt(n.toDouble()).roundToInt()
-    if (sqrt * sqrt > n) sqrt--
-    while (sqrt > 1) {
-      if (n % sqrt == 0) return sqrt
-      sqrt--
-    }
-    throw IllegalArgumentException("n is prime. Please chose another one")
-  }
 
   class IndiciesIndexes(private val indices: List<Pair<Int, Int>>) {
     fun <T> translateList(list: List<List<T>>): List<T> =

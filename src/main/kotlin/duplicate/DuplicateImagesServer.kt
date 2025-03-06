@@ -1,4 +1,4 @@
-package com.fvlaenix.duplicate
+package duplicate
 
 import io.grpc.Server
 import io.grpc.ServerBuilder

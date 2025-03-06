@@ -1,4 +1,4 @@
-package com.fvlaenix.duplicate.database
+package duplicate.database
 
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -60,8 +60,5 @@ class DuplicateInfoConnector(private val database: Database) {
   ) = transaction(database) {
     DuplicateInfoTable.deleteWhere { (DuplicateInfoTable.originalImageId eq imageId) or (DuplicateInfoTable.duplicateImageId eq imageId) }
   }
-  
-  fun getAll(): List<DuplicateInfo> = transaction(database) {
-    DuplicateInfoTable.selectAll().map { get(it) }
-  }
+
 }

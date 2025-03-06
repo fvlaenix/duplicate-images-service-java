@@ -1,7 +1,7 @@
-package com.fvlaenix.duplicate.database
+package duplicate.database
 
-import com.fvlaenix.duplicate.utils.ImageUtils
-import com.fvlaenix.duplicate.utils.LongBlobUtils.longBlob
+import duplicate.utils.ImageUtils
+import duplicate.utils.LongBlobUtils.longBlob
 import org.jetbrains.exposed.dao.LongIdTable
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -22,15 +22,6 @@ data class Image(
   val additionalInfo: String,
   val fileName: String,
   val image: BufferedImage
-)
-
-data class ImageInfo(
-  val id: Long,
-  val group: String,
-  val messageId: String,
-  val numberInMessage: Int,
-  val additionalInfo: String,
-  val fileName: String
 )
 
 object ImageTable : LongIdTable() {
@@ -80,16 +71,6 @@ class ImageConnector(private val database: Database) {
       .map { get(it) }.singleOrNull()
   }
 
-  fun findByIdWithoutImage(id: Long): ImageInfo? = withConnect {
-    ImageTable
-      .slice(
-        ImageTable.id, ImageTable.group, ImageTable.messageId,
-        ImageTable.numberInMessage, ImageTable.additionalInfo, ImageTable.fileName
-      )
-      .select { ImageTable.id eq id }
-      .map { getWithoutImage(it) }.singleOrNull()
-  }
-
   private fun Transaction.existsConnected(messageId: String, numberInMessage: Int) =
     getIdConnected(messageId, numberInMessage) != null
 
@@ -118,22 +99,7 @@ class ImageConnector(private val database: Database) {
     }
   }
 
-  fun getAllIds(): List<Long> = transaction(database) {
-    ImageTable.slice(ImageTable.id).selectAll().map { it[ImageTable.id].value }
-  }
-  
   companion object {
-    fun getWithoutImage(resultRow: ResultRow): ImageInfo {
-      return ImageInfo(
-        id = resultRow[ImageTable.id].value,
-        group = resultRow[ImageTable.group],
-        messageId = resultRow[ImageTable.messageId],
-        numberInMessage = resultRow[ImageTable.numberInMessage],
-        additionalInfo = resultRow[ImageTable.additionalInfo],
-        fileName = resultRow[ImageTable.fileName]
-      )
-    }
-    
     fun get(resultRow: ResultRow): Image {
       val image = ImageUtils.getImageFromBlob(SerialBlob(resultRow[ImageTable.image]))
       if (image == null) {

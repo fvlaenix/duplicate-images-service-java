@@ -1,8 +1,8 @@
-package com.fvlaenix.duplicate.database
+package duplicate.database
 
-import com.fvlaenix.duplicate.utils.HashUtils
-import com.fvlaenix.duplicate.utils.ImageUtils.getGray
-import com.fvlaenix.duplicate.utils.IndicesUtils
+import duplicate.utils.HashUtils
+import duplicate.utils.ImageUtils.getGray
+import duplicate.utils.IndicesUtils
 import net.coobird.thumbnailator.Thumbnails
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -118,17 +118,6 @@ class ImageHashConnector(private val database: Database) {
     }
 
     return currentIds.toList()
-  }
-
-  fun selectSimilarImages(
-    group: String,
-    timestamp: Long,
-    height: Int,
-    width: Int,
-    imageHash: List<List<Int>>,
-    pixelDistance: Int = REAL_PIXEL_DISTANCE
-  ): List<Long> = transaction(database) {
-    selectSimilarImageConnected(group, timestamp, height, width, imageHash, pixelDistance)
   }
 
   private fun Transaction.isExists(id: Long): Boolean =

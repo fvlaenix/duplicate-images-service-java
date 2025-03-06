@@ -1,10 +1,10 @@
 package com.fvlaenix.duplicate
 
-import com.fvlaenix.duplicate.database.ImageHashConnector
-import com.fvlaenix.duplicate.database.ImageHashTable
-import com.fvlaenix.duplicate.database.ImageTable
-import com.fvlaenix.duplicate.image.ComparingMachine
-import com.fvlaenix.duplicate.image.ComparingPictures
+import duplicate.database.ImageHashConnector
+import duplicate.database.ImageHashTable
+import duplicate.database.ImageTable
+import duplicate.image.ComparingMachine
+import duplicate.image.ComparingPictures
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.transactions.transaction

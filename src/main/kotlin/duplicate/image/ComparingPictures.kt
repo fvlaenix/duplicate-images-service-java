@@ -1,8 +1,8 @@
-package com.fvlaenix.duplicate.image
+package duplicate.image
 
-import com.fvlaenix.duplicate.utils.ImageUtils.getBlue
-import com.fvlaenix.duplicate.utils.ImageUtils.getGreen
-import com.fvlaenix.duplicate.utils.ImageUtils.getRed
+import duplicate.utils.ImageUtils.getBlue
+import duplicate.utils.ImageUtils.getGreen
+import duplicate.utils.ImageUtils.getRed
 import java.awt.image.BufferedImage
 import kotlin.math.max
 import kotlin.random.Random

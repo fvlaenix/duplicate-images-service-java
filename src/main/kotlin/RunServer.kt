@@ -1,7 +1,5 @@
-package com.fvlaenix
-
-import com.fvlaenix.duplicate.DuplicateImagesServer
-import com.fvlaenix.duplicate.database.Connector
+import duplicate.DuplicateImagesServer
+import duplicate.database.Connector
 import java.util.logging.Level
 import java.util.logging.LogManager
 import java.util.logging.Logger

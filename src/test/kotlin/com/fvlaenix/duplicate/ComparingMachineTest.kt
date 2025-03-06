@@ -2,7 +2,7 @@ package com.fvlaenix.duplicate
 
 import com.fvlaenix.duplicate.protobuf.addImageRequest
 import com.fvlaenix.duplicate.protobuf.checkImageRequest
-import com.fvlaenix.duplicate.utils.ImageUtils
+import duplicate.utils.ImageUtils
 import com.fvlaenix.image.protobuf.Image
 import com.fvlaenix.image.protobuf.image
 import com.google.protobuf.kotlin.toByteString

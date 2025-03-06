@@ -1,7 +1,7 @@
 package com.fvlaenix.duplicate
 
-import com.fvlaenix.duplicate.database.ImageHashConnector
-import com.fvlaenix.duplicate.image.ComparingPictures
+import duplicate.database.ImageHashConnector
+import duplicate.image.ComparingPictures
 import com.fvlaenix.duplicate.protobuf.addImageRequest
 import com.google.protobuf.kotlin.toByteString
 import org.junit.jupiter.api.DynamicTest

@@ -1,7 +1,7 @@
-package com.fvlaenix.duplicate.utils
+package duplicate.utils
 
-import com.fvlaenix.duplicate.database.MAX_HEIGHT
-import com.fvlaenix.duplicate.database.MAX_WIDTH
+import duplicate.database.MAX_HEIGHT
+import duplicate.database.MAX_WIDTH
 import kotlin.math.abs
 
 object HashUtils {

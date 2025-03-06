@@ -1,6 +1,6 @@
 package com.fvlaenix.duplicate
 
-import com.fvlaenix.duplicate.utils.IndicesUtils
+import duplicate.utils.IndicesUtils
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 

@@ -1,4 +1,4 @@
-package com.fvlaenix.duplicate.utils
+package duplicate.utils
 
 import java.awt.image.BufferedImage
 import java.io.ByteArrayOutputStream

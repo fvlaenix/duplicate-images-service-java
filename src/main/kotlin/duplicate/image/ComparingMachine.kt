@@ -1,9 +1,13 @@
-package com.fvlaenix.duplicate.image
+package duplicate.image
 
-import com.fvlaenix.duplicate.database.*
 import com.fvlaenix.duplicate.protobuf.*
 import com.fvlaenix.duplicate.protobuf.CheckImageResponseImagesInfoKt.checkImageResponseImageInfo
 import com.fvlaenix.image.protobuf.Image
+import duplicate.database.Connector
+import duplicate.database.DuplicateInfoConnector
+import duplicate.database.ImageConnector
+import duplicate.database.ImageHashConnector
+import duplicate.database.ImageTable
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.newFixedThreadPoolContext

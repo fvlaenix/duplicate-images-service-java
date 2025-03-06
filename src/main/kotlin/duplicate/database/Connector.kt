@@ -1,4 +1,4 @@
-package com.fvlaenix.duplicate.database
+package duplicate.database
 
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.transactions.transaction

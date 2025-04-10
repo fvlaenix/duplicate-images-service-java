@@ -63,6 +63,10 @@ dependencies {
 
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
 
+    testImplementation("org.testcontainers:testcontainers:1.19.4")
+    testImplementation("org.testcontainers:junit-jupiter:1.19.4")
+    testImplementation("org.testcontainers:localstack:1.19.4")
+
     testImplementation("org.jetbrains.kotlin:kotlin-test")
 }
 

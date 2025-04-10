@@ -1,27 +1,19 @@
 package duplicate.database
 
-import duplicate.utils.ImageUtils
-import duplicate.utils.LongBlobUtils.longBlob
 import org.jetbrains.exposed.dao.LongIdTable
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.transaction
-import java.awt.image.BufferedImage
-import java.util.logging.Level
-import java.util.logging.Logger
-import javax.sql.rowset.serial.SerialBlob
-import kotlin.io.path.Path
-import kotlin.io.path.extension
 
-private const val IS_LONG_BLOB: Boolean = true
-
-data class Image(
+/**
+ * Data class representing image metadata
+ */
+data class ImageMetadata(
   val id: Long,
   val group: String,
   val messageId: String,
   val numberInMessage: Int,
   val additionalInfo: String,
-  val fileName: String,
-  val image: BufferedImage
+  val fileName: String
 )
 
 object ImageTable : LongIdTable() {
@@ -30,14 +22,11 @@ object ImageTable : LongIdTable() {
   val numberInMessage = integer("numberInMessage")
   val additionalInfo = varchar("additionalInfo", 400)
   val fileName = varchar("fileName", 255)
-  val image = if (IS_LONG_BLOB) longBlob("image") else blob("image")
 
   init {
     index(true, messageId, numberInMessage)
   }
 }
-
-private val LOGGER: Logger = Logger.getLogger(ImageConnector::class.java.name)
 
 class ImageConnector(private val database: Database) {
   init {
@@ -57,20 +46,6 @@ class ImageConnector(private val database: Database) {
     getIdConnected(messageId, numberInMessage)
   }
 
-  private fun Transaction.getConnected(messageId: String, numberInMessage: Int) = ImageTable
-    .select { (ImageTable.messageId eq messageId) and (ImageTable.numberInMessage eq numberInMessage) }
-    .map { get(it) }.singleOrNull()
-
-  fun get(messageId: String, numberInMessage: Int): Image? = withConnect {
-    getConnected(messageId, numberInMessage)
-  }
-
-  fun findById(id: Long): Image? = withConnect {
-    ImageTable
-      .select { ImageTable.id eq id }
-      .map { get(it) }.singleOrNull()
-  }
-
   private fun Transaction.existsConnected(messageId: String, numberInMessage: Int) =
     getIdConnected(messageId, numberInMessage) != null
 
@@ -79,13 +54,11 @@ class ImageConnector(private val database: Database) {
     messageId: String,
     numberInMessage: Int,
     additionalInfo: String,
-    fileName: String,
-    image: BufferedImage
+    fileName: String
   ): Long {
-    val blob = ImageUtils.getImageBlob(image, Path(fileName).extension)
     return withConnect {
       if (existsConnected(messageId, numberInMessage)) {
-        return@withConnect getConnected(messageId, numberInMessage)!!.id
+        return@withConnect getIdConnected(messageId, numberInMessage)!!
       }
       val idValue = ImageTable.insert {
         it[ImageTable.group] = group
@@ -93,25 +66,36 @@ class ImageConnector(private val database: Database) {
         it[ImageTable.numberInMessage] = numberInMessage
         it[ImageTable.additionalInfo] = additionalInfo
         it[ImageTable.fileName] = fileName
-        it[ImageTable.image] = blob
       } get ImageTable.id
       idValue.value
     }
   }
 
   /**
+   * Get image metadata by ID
+   */
+  fun getMetadataById(id: Long): ImageMetadata? = withConnect {
+    ImageTable.select { ImageTable.id eq id }
+      .map { getMetadata(it) }.singleOrNull()
+  }
+
+  /**
+   * Get image metadata by messageId and numberInMessage
+   */
+  fun getMetadataByMessage(messageId: String, numberInMessage: Int): ImageMetadata? = withConnect {
+    ImageTable.select { (ImageTable.messageId eq messageId) and (ImageTable.numberInMessage eq numberInMessage) }
+      .map { getMetadata(it) }.singleOrNull()
+  }
+
+  /**
    * Gets the total number of images in the database
    */
   fun getTotalImagesCount(): Int = withConnect {
-    ImageTable.selectAll().count().toInt()
+    ImageTable.selectAll().count()
   }
 
   /**
    * Gets a batch of image IDs with pagination support
-   *
-   * @param offset offset from the beginning of the selection
-   * @param limit maximum number of records in the selection
-   * @return list of image IDs
    */
   fun getImageIdsBatch(offset: Int, limit: Int): List<Long> = withConnect {
     ImageTable.slice(ImageTable.id)
@@ -121,27 +105,21 @@ class ImageConnector(private val database: Database) {
       .map { it[ImageTable.id].value }
   }
 
-  companion object {
-    fun get(resultRow: ResultRow): Image {
-      val image = ImageUtils.getImageFromBlob(SerialBlob(resultRow[ImageTable.image]))
-      if (image == null) {
-        LOGGER.log(
-          Level.SEVERE,
-          "Failed image read. Id: ${resultRow[ImageTable.messageId]}-${resultRow[ImageTable.numberInMessage]}"
-        )
-        throw ImageReadException(resultRow[ImageTable.id].value)
-      }
-      return Image(
-        id = resultRow[ImageTable.id].value,
-        group = resultRow[ImageTable.group],
-        messageId = resultRow[ImageTable.messageId],
-        numberInMessage = resultRow[ImageTable.numberInMessage],
-        additionalInfo = resultRow[ImageTable.additionalInfo],
-        fileName = resultRow[ImageTable.fileName],
-        image = image
-      )
-    }
+  /**
+   * Create metadata object from ResultRow
+   */
+  private fun getMetadata(resultRow: ResultRow): ImageMetadata {
+    return ImageMetadata(
+      id = resultRow[ImageTable.id].value,
+      group = resultRow[ImageTable.group],
+      messageId = resultRow[ImageTable.messageId],
+      numberInMessage = resultRow[ImageTable.numberInMessage],
+      additionalInfo = resultRow[ImageTable.additionalInfo],
+      fileName = resultRow[ImageTable.fileName]
+    )
+  }
+
+  fun deleteById(imageId: Long): Int = withConnect {
+    ImageTable.deleteWhere { ImageTable.id eq imageId }
   }
 }
-
-class ImageReadException(id: Long) : Exception("Image $id could not be read")

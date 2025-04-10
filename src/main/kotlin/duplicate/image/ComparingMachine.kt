@@ -7,14 +7,13 @@ import duplicate.database.Connector
 import duplicate.database.DuplicateInfoConnector
 import duplicate.database.ImageConnector
 import duplicate.database.ImageHashConnector
-import duplicate.database.ImageTable
+import duplicate.s3.S3Storage
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.newFixedThreadPoolContext
 import kotlinx.coroutines.runBlocking
 import net.coobird.thumbnailator.Thumbnails
 import org.jetbrains.exposed.sql.Database
-import org.jetbrains.exposed.sql.deleteWhere
 import java.awt.image.BufferedImage
 import java.util.*
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -41,9 +40,9 @@ private val RESERVE_PROPERTIES = Connector::class.java.getResourceAsStream("/com
   Properties().apply { load(it) }
 }
 
-private val PROPERTIES = ENV_PROPERTIES?.apply { LOGGER.info("Using env properties") } ?: 
-  RESERVE_PROPERTIES?.apply { LOGGER.info("Using git properties") } ?: 
-  throw IllegalStateException("Can't find env path ${System.getenv("PATH_TO_COMPARING_PROPERTIES")} and local path")
+private val PROPERTIES = ENV_PROPERTIES?.apply { LOGGER.info("Using env properties") }
+  ?: RESERVE_PROPERTIES?.apply { LOGGER.info("Using git properties") }
+  ?: throw IllegalStateException("Can't find env path ${System.getenv("PATH_TO_COMPARING_PROPERTIES")} and local path")
 
 private val WIDTH = PROPERTIES.getProperty("width")?.toInt() ?: throw IllegalStateException("width should exists in properties")
 private val HEIGHT = PROPERTIES.getProperty("height")?.toInt() ?: throw IllegalStateException("height should exists in properties")
@@ -53,12 +52,13 @@ class ComparingMachine(database: Database) {
   private val imageConnector = ImageConnector(database)
   private val imageHashConnector = ImageHashConnector(database)
   private val duplicateInfoConnector = DuplicateInfoConnector(database)
-  
+  private val s3Storage = S3Storage.getInstance()
+
   companion object {
     // it is const, but you can change it between launches anyway
     val SIZE_MAX_WIDTH: Int? = if (WIDTH <= 0) null else WIDTH
     val SIZE_MAX_HEIGHT: Int? = if (HEIGHT <= 0) null else HEIGHT
-    
+
     private const val COMPARING_COUNT = 32
 
     @OptIn(DelicateCoroutinesApi::class)
@@ -98,30 +98,50 @@ class ComparingMachine(database: Database) {
     }
     return bufferedImage
   }
-  
+
   fun addImageWithCheck(request: AddImageRequest): AddImageResponse {
     LOGGER.log(Level.FINE, "Got addImageRequest: ${request.messageId}-${request.numberInMessage}")
     val image = readImage(request.image) ?: return addImageResponse {
       this.error = "Can't read image with id ${request.messageId}-${request.numberInMessage}"
     }
+
+    // Store metadata in database (but not the image itself)
     val imageId = imageConnector.withConnect {
       val ids = imageConnector.getId(request.messageId, request.numberInMessage)
       if (ids != null) return@withConnect ids
+
       imageConnector.new(
         group = request.group,
         messageId = request.messageId,
         numberInMessage = request.numberInMessage,
         additionalInfo = request.additionalInfo,
-        fileName = request.image.fileName,
-        image = image
+        fileName = request.image.fileName
       )
     }
+
+    // Add image hash to database
     val added = imageHashConnector.addImageWithCheck(
       id = imageId,
       group = request.group,
       timestamp = request.timestamp,
       image = image
     )
+
+    // Store the actual image in S3
+    val s3Key = s3Storage.generateS3Key(
+      group = request.group,
+      messageId = request.messageId,
+      numberInMessage = request.numberInMessage,
+      fileName = request.image.fileName,
+      timestamp = request.timestamp
+    )
+
+    val success = s3Storage.uploadImage(s3Key, image, s3Storage.getExtension(request.image.fileName))
+    if (!success) {
+      LOGGER.log(Level.WARNING, "Failed to upload image to S3: $s3Key")
+    } else {
+      LOGGER.log(Level.FINE, "Successfully uploaded image to S3: $s3Key")
+    }
 
     val checkResult = checkImageCandidates(image, added.similarIds)
     checkResult.forEach { original ->
@@ -132,8 +152,9 @@ class ComparingMachine(database: Database) {
         original.info.level
       )
     }
+
     return addImageResponse {
-      this.responseOk = addImageResponseOk { 
+      this.responseOk = addImageResponseOk {
         this.isAdded = added.isAdded
         this.imageInfo = CheckImageResponseImagesInfo.newBuilder().addAllImages(checkResult.map { it.info }).build()
       }
@@ -152,6 +173,36 @@ class ComparingMachine(database: Database) {
     val info: CheckImageResponseImagesInfo.CheckImageResponseImageInfo
   )
 
+  private fun findImageById(id: Long): duplicate.image.Image? {
+    // Get metadata from database
+    val metadata = imageConnector.getMetadataById(id) ?: return null
+
+    // Get timestamp from hash table
+    val imageHash = imageHashConnector.getById(id) ?: return null
+
+    // Build S3 key and fetch image from S3
+    val s3Key = s3Storage.generateS3Key(
+      group = metadata.group,
+      messageId = metadata.messageId,
+      numberInMessage = metadata.numberInMessage,
+      fileName = metadata.fileName,
+      timestamp = imageHash.timestamp
+    )
+
+    val image = s3Storage.getImage(s3Key) ?: return null
+
+    // Create complete Image object
+    return Image(
+      id = metadata.id,
+      group = metadata.group,
+      messageId = metadata.messageId,
+      numberInMessage = metadata.numberInMessage,
+      additionalInfo = metadata.additionalInfo,
+      fileName = metadata.fileName,
+      image = image
+    )
+  }
+
   private fun checkImageCandidates(image: BufferedImage, ids: List<Long>): List<ResultCheck> {
     var it = 0
     val result = ConcurrentLinkedQueue<ResultCheck>()
@@ -159,7 +210,8 @@ class ComparingMachine(database: Database) {
       val startIndex = it
       val finishIndex = startIndex + COMPARING_COUNT
       val subList = ids.subList(startIndex, min(finishIndex, ids.size))
-      val images = subList.mapNotNull { imageConnector.findById(it) }
+      val images = subList.mapNotNull { findImageById(it) }
+
       runBlocking {
         images.forEach { candidate ->
           launch(newThreadContext) {
@@ -182,7 +234,7 @@ class ComparingMachine(database: Database) {
     }
     return result.toList()
   }
-  
+
   fun checkImage(request: CheckImageRequest): CheckImageResponse {
     LOGGER.log(Level.FINE, "Got CheckImageRequest")
     val image = readImage(request.image) ?: return checkImageResponse { this.error = "Can't read image" }
@@ -195,25 +247,49 @@ class ComparingMachine(database: Database) {
 
   fun deleteImage(request: DeleteImageRequest): DeleteImageResponse {
     LOGGER.log(Level.FINE, "Got DeleteImageRequest: ${request.messageId}-${request.numberInMessage}")
-    val id = imageConnector.withConnect {
-      val id = imageConnector.getId(messageId = request.messageId, numberInMessage = request.numberInMessage)
-        ?: return@withConnect null
-      ImageTable.deleteWhere { ImageTable.id eq id }
-      id
+
+    // Get the image ID
+    val imageId = imageConnector.getId(request.messageId, request.numberInMessage)
+    if (imageId == null) {
+      return deleteImageResponse { this.isDeleted = false }
     }
-    if (id != null) {
-      imageHashConnector.deleteById(id)
-      duplicateInfoConnector.removeById(id)
+
+    // Get the metadata needed for S3 key
+    val metadata = imageConnector.getMetadataById(imageId)
+    val imageHash = imageHashConnector.getById(imageId)
+
+    var s3DeleteSuccess = false
+
+    // Delete from S3 if we have enough metadata
+    if (metadata != null && imageHash != null) {
+      val s3Key = s3Storage.generateS3Key(
+        group = metadata.group,
+        messageId = metadata.messageId,
+        numberInMessage = metadata.numberInMessage,
+        fileName = metadata.fileName,
+        timestamp = imageHash.timestamp
+      )
+
+      s3DeleteSuccess = s3Storage.deleteImage(s3Key)
+      if (!s3DeleteSuccess) {
+        LOGGER.log(Level.WARNING, "Failed to delete image from S3: $s3Key")
+      }
     }
-    val response = deleteImageResponse {
-      this.isDeleted = id != null
+
+    val dbDeletedRows = imageConnector.deleteById(imageId)
+    imageHashConnector.deleteById(imageId)
+    duplicateInfoConnector.removeById(imageId)
+
+    // If S3 delete failed but database delete worked, consider it successful
+    s3DeleteSuccess = s3DeleteSuccess || dbDeletedRows > 0
+
+    return deleteImageResponse {
+      this.isDeleted = s3DeleteSuccess
     }
-    return response
   }
-  
+
   fun getImageCompressionSize(): GetCompressionSizeResponse {
     return getCompressionSizeResponse {
-      "$SIZE_MAX_WIDTH, $SIZE_MAX_HEIGHT"
       if (SIZE_MAX_WIDTH != null) this.x = SIZE_MAX_WIDTH
       if (SIZE_MAX_HEIGHT != null) this.y = SIZE_MAX_HEIGHT
     }

@@ -33,6 +33,8 @@ dependencies {
     implementation("com.h2database:h2:1.4.199")
     implementation("org.jetbrains.exposed:exposed:0.17.14")
 
+    implementation("com.amazonaws:aws-java-sdk-s3:1.12.647")
+
     implementation("com.twelvemonkeys.imageio:imageio:3.10.1")
     implementation("com.twelvemonkeys.imageio:imageio-bmp:3.10.1")
     implementation("com.twelvemonkeys.imageio:imageio-hdr:3.10.1")
@@ -73,6 +75,12 @@ task<JavaExec>("runServer") {
     mainClass.set("com.fvlaenix.RunServerKt")
 }
 
+task<JavaExec>("runS3Migration") {
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("S3MigratorMainKt")
+}
+
+
 fun createJarTaskByJavaExec(name: String) = tasks.create<ShadowJar>("${name}Jar") {
     mergeServiceFiles()
     group = "shadow"
@@ -91,6 +99,7 @@ fun createJarTaskByJavaExec(name: String) = tasks.create<ShadowJar>("${name}Jar"
 }.apply task@ { tasks.named("jar") { dependsOn(this@task) } }
 
 createJarTaskByJavaExec("runServer")
+createJarTaskByJavaExec("runS3Migration")
 
 tasks.test {
     useJUnitPlatform()

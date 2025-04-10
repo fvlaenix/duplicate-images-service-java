@@ -99,6 +99,28 @@ class ImageConnector(private val database: Database) {
     }
   }
 
+  /**
+   * Gets the total number of images in the database
+   */
+  fun getTotalImagesCount(): Int = withConnect {
+    ImageTable.selectAll().count().toInt()
+  }
+
+  /**
+   * Gets a batch of image IDs with pagination support
+   *
+   * @param offset offset from the beginning of the selection
+   * @param limit maximum number of records in the selection
+   * @return list of image IDs
+   */
+  fun getImageIdsBatch(offset: Int, limit: Int): List<Long> = withConnect {
+    ImageTable.slice(ImageTable.id)
+      .selectAll()
+      .orderBy(ImageTable.id to SortOrder.ASC)
+      .limit(limit, offset)
+      .map { it[ImageTable.id].value }
+  }
+
   companion object {
     fun get(resultRow: ResultRow): Image {
       val image = ImageUtils.getImageFromBlob(SerialBlob(resultRow[ImageTable.image]))

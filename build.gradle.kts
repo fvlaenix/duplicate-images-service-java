@@ -76,7 +76,7 @@ kotlin {
 
 task<JavaExec>("runServer") {
     classpath = sourceSets.main.get().runtimeClasspath
-    mainClass.set("com.fvlaenix.RunServerKt")
+    mainClass.set("RunServerKt")
 }
 
 task<JavaExec>("runS3Migration") {
